@@ -1,0 +1,488 @@
+{
+  "name": "Simulation Control",
+  "entity": {
+    "name": "GameSession",
+    "runtime": true,
+    "singleton": true,
+    "fields": [
+      {
+        "name": "isRunning",
+        "type": "boolean",
+        "required": true,
+        "default": false
+      },
+      {
+        "name": "frameCount",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "gravity",
+        "type": "number",
+        "required": true,
+        "default": 0.5
+      },
+      {
+        "name": "canvasWidth",
+        "type": "number",
+        "required": true,
+        "default": 800
+      },
+      {
+        "name": "canvasHeight",
+        "type": "number",
+        "required": true,
+        "default": 600
+      },
+      {
+        "name": "fps",
+        "type": "number",
+        "required": true,
+        "default": 60
+      },
+      {
+        "name": "deltaTime",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "lastFrameTime",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "isPaused",
+        "type": "boolean",
+        "required": true,
+        "default": false
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "GameState",
+      "category": "state",
+      "linkedEntity": "GameSession",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "Stopped",
+            "isInitial": true
+          },
+          {
+            "name": "Running"
+          },
+          {
+            "name": "Paused"
+          },
+          {
+            "name": "Resetting"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "START",
+            "name": "Start Simulation"
+          },
+          {
+            "key": "STOP",
+            "name": "Stop Simulation"
+          },
+          {
+            "key": "PAUSE",
+            "name": "Pause Simulation"
+          },
+          {
+            "key": "RESUME",
+            "name": "Resume Simulation"
+          },
+          {
+            "key": "RESET",
+            "name": "Reset Simulation"
+          },
+          {
+            "key": "FRAME_UPDATE",
+            "name": "Frame Update"
+          },
+          {
+            "key": "SETTINGS_CHANGE",
+            "name": "Settings Change"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "Stopped",
+            "to": "Stopped",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Simulation Control",
+                  "subtitle": "Physics Simulation Engine"
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "simulation-canvas",
+                  "width": "@entity.canvasWidth",
+                  "height": "@entity.canvasHeight"
+                }
+              ],
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession"
+                }
+              ],
+              [
+                "render-ui",
+                "hud-top",
+                {
+                  "type": "simulation-stats",
+                  "entity": "GameSession",
+                  "metrics": [
+                    {
+                      "field": "frameCount",
+                      "label": "Frame"
+                    },
+                    {
+                      "field": "fps",
+                      "label": "FPS"
+                    },
+                    {
+                      "field": "gravity",
+                      "label": "Gravity"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "Stopped",
+            "to": "Running",
+            "event": "START",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "isRunning": true,
+                  "frameCount": 0,
+                  "lastFrameTime": "@timestamp"
+                }
+              ],
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession",
+                  "state": "running"
+                }
+              ],
+              [
+                "emit",
+                "SIMULATION_STARTED"
+              ]
+            ]
+          },
+          {
+            "from": "Running",
+            "to": "Running",
+            "event": "FRAME_UPDATE",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "frameCount": "@entity.frameCount + 1",
+                  "deltaTime": "@timestamp - @entity.lastFrameTime",
+                  "lastFrameTime": "@timestamp",
+                  "fps": "1000 / (@timestamp - @entity.lastFrameTime)"
+                }
+              ],
+              [
+                "emit",
+                "FRAME_TICK",
+                {
+                  "frame": "@entity.frameCount",
+                  "deltaTime": "@entity.deltaTime"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "Running",
+            "to": "Paused",
+            "event": "PAUSE",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "isPaused": true
+                }
+              ],
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession",
+                  "state": "paused"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "pause-overlay",
+                  "message": "Simulation Paused"
+                }
+              ],
+              [
+                "emit",
+                "SIMULATION_PAUSED"
+              ]
+            ]
+          },
+          {
+            "from": "Paused",
+            "to": "Running",
+            "event": "RESUME",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "isPaused": false,
+                  "lastFrameTime": "@timestamp"
+                }
+              ],
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession",
+                  "state": "running"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "emit",
+                "SIMULATION_RESUMED"
+              ]
+            ]
+          },
+          {
+            "from": "Running",
+            "to": "Stopped",
+            "event": "STOP",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "isRunning": false,
+                  "isPaused": false
+                }
+              ],
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession",
+                  "state": "stopped"
+                }
+              ],
+              [
+                "emit",
+                "SIMULATION_STOPPED"
+              ]
+            ]
+          },
+          {
+            "from": "Paused",
+            "to": "Stopped",
+            "event": "STOP",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "isRunning": false,
+                  "isPaused": false
+                }
+              ],
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession",
+                  "state": "stopped"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "emit",
+                "SIMULATION_STOPPED"
+              ]
+            ]
+          },
+          {
+            "from": "Stopped",
+            "to": "Resetting",
+            "event": "RESET",
+            "effects": [
+              [
+                "update-entity",
+                "GameSession",
+                {
+                  "frameCount": 0,
+                  "deltaTime": 0,
+                  "lastFrameTime": 0,
+                  "isRunning": false,
+                  "isPaused": false
+                }
+              ],
+              [
+                "emit",
+                "SIMULATION_RESET"
+              ]
+            ]
+          },
+          {
+            "from": "Resetting",
+            "to": "Stopped",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-controls",
+                  "entity": "GameSession",
+                  "state": "stopped"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Simulation Reset",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "Stopped",
+            "to": "Stopped",
+            "event": "SETTINGS_CHANGE",
+            "effects": [
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "simulation-settings",
+                  "entity": "GameSession",
+                  "fields": [
+                    "gravity",
+                    "canvasWidth",
+                    "canvasHeight",
+                    "fps"
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "Running",
+            "to": "Running",
+            "event": "SETTINGS_CHANGE",
+            "effects": [
+              [
+                "emit",
+                "SETTINGS_UPDATED",
+                {
+                  "gravity": "@entity.gravity",
+                  "fps": "@entity.fps"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "Paused",
+            "to": "Paused",
+            "event": "SETTINGS_CHANGE",
+            "effects": [
+              [
+                "emit",
+                "SETTINGS_UPDATED",
+                {
+                  "gravity": "@entity.gravity",
+                  "fps": "@entity.fps"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "SimulationPage",
+      "path": "/simulation",
+      "viewType": "game",
+      "primaryEntity": "GameSession",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "GameState"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "SIMULATION_STARTED",
+    "SIMULATION_STOPPED",
+    "SIMULATION_PAUSED",
+    "SIMULATION_RESUMED",
+    "SIMULATION_RESET",
+    "FRAME_TICK",
+    "SETTINGS_UPDATED"
+  ],
+  "listens": [
+    "PHYSICS_UPDATE_REQUESTED",
+    "CANVAS_RESIZE_REQUESTED",
+    "PERFORMANCE_WARNING"
+  ]
+}

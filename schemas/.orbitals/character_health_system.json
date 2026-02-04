@@ -1,0 +1,328 @@
+{
+  "name": "Character Health System",
+  "entity": {
+    "name": "Character",
+    "runtime": true,
+    "singleton": true,
+    "fields": [
+      {
+        "name": "health",
+        "type": "number",
+        "required": true,
+        "default": 100
+      },
+      {
+        "name": "maxHealth",
+        "type": "number",
+        "required": true,
+        "default": 100
+      },
+      {
+        "name": "shield",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "maxShield",
+        "type": "number",
+        "required": true,
+        "default": 50
+      },
+      {
+        "name": "isAlive",
+        "type": "boolean",
+        "required": true,
+        "default": true
+      },
+      {
+        "name": "lastDamageTime",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "regenRate",
+        "type": "number",
+        "required": true,
+        "default": 5
+      },
+      {
+        "name": "shieldRegenRate",
+        "type": "number",
+        "required": true,
+        "default": 10
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "HealthDebug",
+      "category": "debug",
+      "linkedEntity": "Character",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "debugging",
+            "isInitial": true
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "DAMAGE_TEST",
+            "name": "Test Damage"
+          },
+          {
+            "key": "HEAL_TEST",
+            "name": "Test Heal"
+          },
+          {
+            "key": "SHIELD_TEST",
+            "name": "Test Shield"
+          },
+          {
+            "key": "KILL_TEST",
+            "name": "Test Death"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "debugging",
+            "to": "debugging",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Health System Debug",
+                  "actions": [
+                    {
+                      "label": "Back to Game",
+                      "navigatesTo": "/game",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-detail",
+                  "entity": "Character",
+                  "fieldNames": [
+                    "health",
+                    "maxHealth",
+                    "shield",
+                    "maxShield",
+                    "isAlive",
+                    "regenRate"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Damage (-25)",
+                    "event": "DAMAGE_TEST",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Heal (+25)",
+                      "event": "HEAL_TEST",
+                      "actionType": "submit"
+                    },
+                    {
+                      "label": "Shield (+10)",
+                      "event": "SHIELD_TEST",
+                      "actionType": "submit"
+                    },
+                    {
+                      "label": "Kill",
+                      "event": "KILL_TEST",
+                      "actionType": "submit",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "debugging",
+            "to": "debugging",
+            "event": "DAMAGE_TEST",
+            "effects": [
+              [
+                "subtract-from-field",
+                "Character",
+                "health",
+                25
+              ],
+              [
+                "emit",
+                "TAKE_DAMAGE"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "info",
+                  "message": "Applied 25 damage"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "debugging",
+            "to": "debugging",
+            "event": "HEAL_TEST",
+            "effects": [
+              [
+                "add-to-field",
+                "Character",
+                "health",
+                25
+              ],
+              [
+                "clamp-field",
+                "Character",
+                "health",
+                0,
+                [
+                  "get-field",
+                  "Character",
+                  "maxHealth"
+                ]
+              ],
+              [
+                "emit",
+                "HEAL"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Applied 25 healing"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "debugging",
+            "to": "debugging",
+            "event": "SHIELD_TEST",
+            "effects": [
+              [
+                "add-to-field",
+                "Character",
+                "shield",
+                10
+              ],
+              [
+                "clamp-field",
+                "Character",
+                "shield",
+                0,
+                [
+                  "get-field",
+                  "Character",
+                  "maxShield"
+                ]
+              ],
+              [
+                "emit",
+                "RESTORE_SHIELD"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "info",
+                  "message": "Applied 10 shield"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "debugging",
+            "to": "debugging",
+            "event": "KILL_TEST",
+            "effects": [
+              [
+                "set-field",
+                "Character",
+                "health",
+                0
+              ],
+              [
+                "emit",
+                "DIE"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "error",
+                  "message": "Character killed"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "GamePage",
+      "path": "/game",
+      "viewType": "game",
+      "primaryEntity": "Character",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "HealthManagement"
+        }
+      ]
+    },
+    {
+      "name": "HealthDebugPage",
+      "path": "/debug/health",
+      "viewType": "debug",
+      "primaryEntity": "Character",
+      "traits": [
+        {
+          "ref": "HealthDebug"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "CHARACTER_DAMAGED",
+    "CHARACTER_CRITICAL",
+    "CHARACTER_DIED",
+    "CHARACTER_RESPAWNED",
+    "CHARACTER_FULLY_HEALED",
+    "REGEN_STARTED",
+    "REGEN_INTERRUPTED"
+  ],
+  "listens": [
+    "ENEMY_ATTACK",
+    "PICKUP_HEALTH_POTION",
+    "PICKUP_SHIELD_BOOST",
+    "LEVEL_HAZARD_DAMAGE",
+    "POWER_UP_COLLECTED"
+  ]
+}

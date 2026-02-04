@@ -1,0 +1,96 @@
+{
+  "name": "SystemMonitor",
+  "version": "1.0.0",
+  "description": "AMA OS POC - System metrics dashboard",
+
+  "orbitals": [{
+    "name": "System Metrics",
+    "entity": {
+      "name": "Metrics",
+      "persistence": "runtime",
+      "fields": [
+        { "name": "id", "type": "string", "default": "system" },
+        { "name": "cpuUsage", "type": "number", "default": 0 },
+        { "name": "memory", "type": "object" },
+        { "name": "battery", "type": "object" },
+        { "name": "uptime", "type": "number", "default": 0 },
+        { "name": "loadAverage", "type": "object" },
+        { "name": "osInfo", "type": "object" },
+        { "name": "thermal", "type": "array" },
+        { "name": "lastUpdated", "type": "timestamp" }
+      ]
+    },
+    "traits": [{
+      "name": "MetricsCollector",
+      "category": "interaction",
+      "linkedEntity": "Metrics",
+      "stateMachine": {
+        "states": [
+          { "name": "idle", "isInitial": true },
+          { "name": "collecting" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "REFRESH", "name": "Refresh metrics" }
+        ],
+        "transitions": [
+          {
+            "from": "idle",
+            "to": "collecting",
+            "event": "INIT",
+            "effects": [
+              ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+              ["set", "@entity.memory", ["oal/memory-info"]],
+              ["set", "@entity.battery", ["oal/battery-status"]],
+              ["set", "@entity.uptime", ["oal/uptime"]],
+              ["set", "@entity.loadAverage", ["oal/load-average"]],
+              ["set", "@entity.osInfo", ["oal/os-info"]],
+              ["set", "@entity.thermal", ["oal/thermal-zones"]],
+              ["set", "@entity.lastUpdated", "@now"],
+              ["render-ui", "main", {
+                "type": "stats",
+                "entity": "Metrics",
+                "stats": [
+                  { "label": "CPU", "field": "cpuUsage", "format": "percent" },
+                  { "label": "Memory", "field": "memory.usagePercent", "format": "percent" },
+                  { "label": "Battery", "field": "battery.percent", "format": "percent" },
+                  { "label": "Uptime", "field": "uptime", "format": "duration" }
+                ]
+              }],
+              ["render-ui", "sidebar", {
+                "type": "entity-table",
+                "entity": "Metrics",
+                "fieldNames": ["osInfo", "loadAverage", "thermal"],
+                "itemActions": [{ "event": "REFRESH", "label": "Refresh" }]
+              }]
+            ]
+          },
+          {
+            "from": "collecting",
+            "to": "collecting",
+            "event": "REFRESH",
+            "effects": [
+              ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+              ["set", "@entity.memory", ["oal/memory-info"]],
+              ["set", "@entity.battery", ["oal/battery-status"]],
+              ["set", "@entity.thermal", ["oal/thermal-zones"]],
+              ["set", "@entity.lastUpdated", "@now"],
+              ["emit", "METRICS_UPDATED", { "timestamp": "@now" }]
+            ]
+          }
+        ]
+      },
+      "ticks": [{
+        "name": "AutoRefresh",
+        "interval": 2000,
+        "effects": [["emit", "REFRESH"]]
+      }]
+    }],
+    "pages": [{
+      "name": "DashboardPage",
+      "path": "/",
+      "slots": ["main", "sidebar"],
+      "traits": [{ "ref": "MetricsCollector" }]
+    }]
+  }]
+}

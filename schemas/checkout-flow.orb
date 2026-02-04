@@ -1,0 +1,249 @@
+{
+  "$schema": "https://kflow.ai/schemas/orbital-v1.json",
+  "name": "E-commerce Checkout",
+  "description": "Example orbital demonstrating payment service traits with Stripe integration",
+  "orbitals": [
+    {
+      "name": "Checkout",
+      "entity": {
+        "name": "Order",
+        "persistence": "persistent",
+        "collection": "orders",
+        "fields": [
+          { "name": "items", "type": "array", "default": [] },
+          { "name": "total", "type": "number", "default": 0 },
+          { "name": "currency", "type": "string", "default": "usd" },
+          { "name": "paymentIntentId", "type": "string", "default": null },
+          { "name": "paymentStatus", "type": "enum", "options": ["pending", "processing", "succeeded", "failed"], "default": "pending" },
+          { "name": "error", "type": "string", "default": null }
+        ]
+      },
+      "traits": [
+        {
+          "name": "CheckoutInteraction",
+          "category": "interaction",
+          "description": "Handles checkout UI flow and user interactions",
+          "stateMachine": {
+            "initial": "ReviewOrder",
+            "states": ["ReviewOrder", "Processing", "Success", "Failed"],
+            "events": ["SUBMIT_PAYMENT", "PAYMENT_SUCCESS", "PAYMENT_FAILED", "RETRY"],
+            "transitions": [
+              {
+                "from": "ReviewOrder",
+                "to": "Processing",
+                "event": "SUBMIT_PAYMENT",
+                "guards": [
+                  { "field": "total", "operator": ">", "value": 0 }
+                ],
+                "effects": [
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "loading-state", "message": "Processing payment..." }
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "Processing",
+                "to": "Success",
+                "event": "PAYMENT_SUCCESS",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "paymentStatus", "value": "succeeded" }
+                  },
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": {
+                        "type": "empty-state",
+                        "icon": "check-circle",
+                        "message": "Payment successful! Thank you for your order."
+                      }
+                    }
+                  },
+                  {
+                    "type": "emit_event",
+                    "config": { "event": "ORDER_COMPLETED" }
+                  }
+                ]
+              },
+              {
+                "from": "Processing",
+                "to": "Failed",
+                "event": "PAYMENT_FAILED",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "paymentStatus", "value": "failed" }
+                  },
+                  {
+                    "type": "update_field",
+                    "config": { "field": "error", "value": "{{payload.message}}" }
+                  },
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": {
+                        "type": "empty-state",
+                        "icon": "x-circle",
+                        "message": "Payment failed. Please try again."
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "Failed",
+                "to": "ReviewOrder",
+                "event": "RETRY",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "error", "value": null }
+                  },
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "form-section" }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "StripePaymentService",
+          "category": "integration",
+          "description": "Handles Stripe payment processing via call_service",
+          "stateMachine": {
+            "initial": "Ready",
+            "states": ["Ready", "CreatingIntent", "ConfirmingPayment"],
+            "events": ["SUBMIT_PAYMENT", "INTENT_CREATED", "PAYMENT_SUCCESS", "PAYMENT_FAILED"],
+            "transitions": [
+              {
+                "from": "Ready",
+                "to": "CreatingIntent",
+                "event": "SUBMIT_PAYMENT",
+                "effects": [
+                  {
+                    "type": "call_service",
+                    "config": {
+                      "service": "stripe",
+                      "action": "createPaymentIntent",
+                      "params": {
+                        "amount": "{{entity.total * 100}}",
+                        "currency": "{{entity.currency}}",
+                        "metadata": { "orderId": "{{entity.id}}" }
+                      },
+                      "onSuccess": "INTENT_CREATED",
+                      "onError": "PAYMENT_FAILED"
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "CreatingIntent",
+                "to": "ConfirmingPayment",
+                "event": "INTENT_CREATED",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "paymentIntentId", "value": "{{payload.id}}" }
+                  },
+                  {
+                    "type": "call_service",
+                    "config": {
+                      "service": "stripe",
+                      "action": "confirmPayment",
+                      "params": {
+                        "paymentIntentId": "{{payload.id}}"
+                      },
+                      "onSuccess": "PAYMENT_SUCCESS",
+                      "onError": "PAYMENT_FAILED"
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "ConfirmingPayment",
+                "to": "Ready",
+                "event": "PAYMENT_SUCCESS"
+              },
+              {
+                "from": ["CreatingIntent", "ConfirmingPayment"],
+                "to": "Ready",
+                "event": "PAYMENT_FAILED"
+              }
+            ]
+          }
+        }
+      ],
+      "patterns": ["entity-list", "form-section", "form-actions", "stats", "loading-state", "empty-state"],
+      "pages": [
+        {
+          "name": "CheckoutPage",
+          "path": "/checkout",
+          "viewType": "detail",
+          "sections": [
+            {
+              "pattern": "page-header",
+              "config": { "title": "Checkout" }
+            },
+            {
+              "pattern": "entity-list",
+              "config": { "dataSource": "items", "title": "Order Summary" }
+            },
+            {
+              "pattern": "stats",
+              "config": {
+                "items": [
+                  { "label": "Subtotal", "value": "{{total}}", "format": "currency" }
+                ]
+              }
+            },
+            {
+              "pattern": "form-section",
+              "config": { "title": "Payment Details" }
+            },
+            {
+              "pattern": "form-actions",
+              "config": {
+                "primary": { "label": "Pay Now", "event": "SUBMIT_PAYMENT" },
+                "secondary": { "label": "Cancel", "event": "CANCEL" }
+              }
+            }
+          ]
+        },
+        {
+          "name": "ConfirmationPage",
+          "path": "/checkout/confirmation",
+          "viewType": "detail",
+          "sections": [
+            {
+              "pattern": "empty-state",
+              "config": {
+                "icon": "check-circle",
+                "title": "Order Confirmed",
+                "message": "Thank you for your purchase!"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "name": "stripe",
+      "description": "Stripe payment processing",
+      "actions": ["createPaymentIntent", "confirmPayment", "refund"]
+    }
+  ]
+}

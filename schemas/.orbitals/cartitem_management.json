@@ -1,0 +1,681 @@
+{
+  "name": "CartItem Management",
+  "entity": {
+    "name": "CartItem",
+    "collection": "cart_items",
+    "fields": [
+      {
+        "name": "productName",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "unitPrice",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "quantity",
+        "type": "number",
+        "required": true,
+        "default": 1
+      },
+      {
+        "name": "totalPrice",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "cartId",
+        "type": "relation",
+        "relation": {
+          "entity": "Cart"
+        },
+        "required": true
+      },
+      {
+        "name": "productId",
+        "type": "relation",
+        "relation": {
+          "entity": "Product"
+        },
+        "required": false
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "AutoCalculate",
+      "category": "behavior",
+      "linkedEntity": "CartItem",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "idle",
+            "isInitial": true
+          },
+          {
+            "name": "calculating"
+          },
+          {
+            "name": "updated"
+          }
+        ],
+        "events": [
+          {
+            "key": "QUANTITY_CHANGED",
+            "name": "Quantity Changed"
+          },
+          {
+            "key": "PRICE_CHANGED",
+            "name": "Price Changed"
+          },
+          {
+            "key": "CALCULATE",
+            "name": "Calculate"
+          },
+          {
+            "key": "CALCULATION_COMPLETE",
+            "name": "Calculation Complete"
+          },
+          {
+            "key": "RESET",
+            "name": "Reset"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "idle",
+            "to": "calculating",
+            "event": "QUANTITY_CHANGED",
+            "effects": [
+              [
+                "trigger",
+                "CALCULATE"
+              ]
+            ]
+          },
+          {
+            "from": "idle",
+            "to": "calculating",
+            "event": "PRICE_CHANGED",
+            "effects": [
+              [
+                "trigger",
+                "CALCULATE"
+              ]
+            ]
+          },
+          {
+            "from": "calculating",
+            "to": "updated",
+            "event": "CALCULATE",
+            "effects": [
+              [
+                "compute",
+                "totalPrice",
+                "multiply",
+                [
+                  "field",
+                  "unitPrice"
+                ],
+                [
+                  "field",
+                  "quantity"
+                ]
+              ],
+              [
+                "persist",
+                "update",
+                "CartItem",
+                "@entity"
+              ],
+              [
+                "trigger",
+                "CALCULATION_COMPLETE"
+              ]
+            ]
+          },
+          {
+            "from": "updated",
+            "to": "idle",
+            "event": "CALCULATION_COMPLETE",
+            "effects": [
+              [
+                "emit",
+                "CART_ITEM_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "updated",
+            "to": "idle",
+            "event": "RESET"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CartItemInteraction",
+      "category": "interaction",
+      "linkedEntity": "CartItem",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "adding"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "viewing"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "ADD_ITEM",
+            "name": "Add Item"
+          },
+          {
+            "key": "EDIT_ITEM",
+            "name": "Edit Item"
+          },
+          {
+            "key": "VIEW_ITEM",
+            "name": "View Item"
+          },
+          {
+            "key": "DELETE_ITEM",
+            "name": "Delete Item"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Shopping Cart",
+                  "actions": [
+                    {
+                      "label": "Add Item",
+                      "event": "ADD_ITEM",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "CartItem",
+                  "columns": [
+                    "productName",
+                    "unitPrice",
+                    "quantity",
+                    "totalPrice"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT_ITEM",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Remove",
+                      "event": "DELETE_ITEM",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "stats",
+                  "entity": "CartItem",
+                  "metrics": [
+                    {
+                      "field": "totalPrice",
+                      "label": "Cart Total",
+                      "format": "currency"
+                    },
+                    {
+                      "field": "quantity",
+                      "label": "Total Items",
+                      "format": "number"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "adding",
+            "event": "ADD_ITEM",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "CartItem",
+                  "fields": [
+                    {
+                      "field": "productName",
+                      "label": "Product Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "unitPrice",
+                      "label": "Unit Price",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "quantity",
+                      "label": "Quantity",
+                      "inputType": "number"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Add to Cart",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "editing",
+            "event": "EDIT_ITEM",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "CartItem",
+                  "fields": [
+                    {
+                      "field": "productName",
+                      "label": "Product Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "unitPrice",
+                      "label": "Unit Price",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "quantity",
+                      "label": "Quantity",
+                      "inputType": "number"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Update Item",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW_ITEM",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "CartItem",
+                  "fieldNames": [
+                    "productName",
+                    "unitPrice",
+                    "quantity",
+                    "totalPrice"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "page-header",
+                  "title": "Item Details",
+                  "actions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT_ITEM",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Remove",
+                      "event": "DELETE_ITEM",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "DELETE_ITEM",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "CartItem",
+                "@entity"
+              ],
+              [
+                "emit",
+                "CART_ITEM_DELETED",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Item removed from cart",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "adding",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "create",
+                "CartItem",
+                "@form"
+              ],
+              [
+                "trigger",
+                "QUANTITY_CHANGED"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "emit",
+                "CART_ITEM_ADDED",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Item added to cart",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "CartItem",
+                "@form"
+              ],
+              [
+                "trigger",
+                "QUANTITY_CHANGED"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "emit",
+                "CART_ITEM_UPDATED",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Item updated",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "adding",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT_ITEM",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "CartItem",
+                  "fields": [
+                    {
+                      "field": "productName",
+                      "label": "Product Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "unitPrice",
+                      "label": "Unit Price",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "quantity",
+                      "label": "Quantity",
+                      "inputType": "number"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Update Item",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "DELETE_ITEM",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "CartItem",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "emit",
+                "CART_ITEM_DELETED",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Item removed from cart",
+                  "variant": "success"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "CartPage",
+      "path": "/cart",
+      "viewType": "list",
+      "primaryEntity": "CartItem",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "CartItemInteraction"
+        },
+        {
+          "ref": "AutoCalculate"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "CART_ITEM_ADDED",
+    "CART_ITEM_UPDATED",
+    "CART_ITEM_DELETED"
+  ],
+  "listens": [
+    "PRODUCT_PRICE_CHANGED",
+    "CART_CLEARED"
+  ]
+}

@@ -1,0 +1,990 @@
+{
+  "name": "Order Management",
+  "entity": {
+    "name": "Order",
+    "collection": "orders",
+    "fields": [
+      {
+        "name": "orderNumber",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "customerName",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "pending",
+          "approved",
+          "rejected",
+          "shipped",
+          "delivered"
+        ],
+        "required": true
+      },
+      {
+        "name": "priority",
+        "type": "enum",
+        "values": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ],
+        "required": true
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "createdAt",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "reviewedBy",
+        "type": "string"
+      },
+      {
+        "name": "reviewNotes",
+        "type": "string"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "OrderApproval",
+      "category": "workflow",
+      "linkedEntity": "Order",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "reviewing",
+            "isInitial": true
+          },
+          {
+            "name": "approving"
+          },
+          {
+            "name": "rejecting"
+          },
+          {
+            "name": "approved"
+          },
+          {
+            "name": "rejected"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "APPROVE",
+            "name": "Approve"
+          },
+          {
+            "key": "REJECT",
+            "name": "Reject"
+          },
+          {
+            "key": "CONFIRM_APPROVE",
+            "name": "Confirm Approval"
+          },
+          {
+            "key": "CONFIRM_REJECT",
+            "name": "Confirm Rejection"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "reviewing",
+            "to": "reviewing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "customerName",
+                    "amount",
+                    "status",
+                    "priority",
+                    "description",
+                    "createdAt"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Approve",
+                    "event": "APPROVE",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Reject",
+                      "event": "REJECT",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "reviewing",
+            "to": "approving",
+            "event": "APPROVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "fields": [
+                    {
+                      "field": "reviewedBy",
+                      "label": "Reviewed By",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "reviewNotes",
+                      "label": "Review Notes",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Confirm Approval",
+                    "event": "CONFIRM_APPROVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "reviewing",
+            "to": "rejecting",
+            "event": "REJECT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "fields": [
+                    {
+                      "field": "reviewedBy",
+                      "label": "Reviewed By",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "reviewNotes",
+                      "label": "Rejection Reason",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Confirm Rejection",
+                    "event": "CONFIRM_REJECT",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "approving",
+            "to": "approved",
+            "event": "CONFIRM_APPROVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "approved",
+                  "reviewedBy": "@form.reviewedBy",
+                  "reviewNotes": "@form.reviewNotes"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order approved successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "rejecting",
+            "to": "rejected",
+            "event": "CONFIRM_REJECT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "rejected",
+                  "reviewedBy": "@form.reviewedBy",
+                  "reviewNotes": "@form.reviewNotes"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order rejected"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "approving",
+            "to": "reviewing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "rejecting",
+            "to": "reviewing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "EntityManagement",
+      "category": "interaction",
+      "linkedEntity": "Order",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "deleting"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create"
+          },
+          {
+            "key": "VIEW",
+            "name": "View"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CONFIRM_DELETE",
+            "name": "Confirm Delete"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Orders",
+                  "actions": [
+                    {
+                      "label": "New Order",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "pending",
+                        "approved",
+                        "rejected",
+                        "shipped",
+                        "delivered"
+                      ]
+                    },
+                    {
+                      "field": "priority",
+                      "filterType": "select",
+                      "label": "Priority",
+                      "options": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                      ]
+                    },
+                    {
+                      "field": "customerName",
+                      "filterType": "search",
+                      "label": "Customer"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Order",
+                  "columns": [
+                    "orderNumber",
+                    "customerName",
+                    "amount",
+                    "status",
+                    "priority",
+                    "createdAt"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "fields": [
+                    {
+                      "field": "orderNumber",
+                      "label": "Order Number",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "customerName",
+                      "label": "Customer Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "amount",
+                      "label": "Amount",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "pending",
+                        "approved",
+                        "rejected",
+                        "shipped",
+                        "delivered"
+                      ]
+                    },
+                    {
+                      "field": "priority",
+                      "label": "Priority",
+                      "inputType": "select",
+                      "values": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                      ]
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Create Order",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "customerName",
+                    "amount",
+                    "status",
+                    "priority",
+                    "description",
+                    "createdAt",
+                    "reviewedBy",
+                    "reviewNotes"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "page-header",
+                  "title": "Order Details",
+                  "actions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "fields": [
+                    {
+                      "field": "orderNumber",
+                      "label": "Order Number",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "customerName",
+                      "label": "Customer Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "amount",
+                      "label": "Amount",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "pending",
+                        "approved",
+                        "rejected",
+                        "shipped",
+                        "delivered"
+                      ]
+                    },
+                    {
+                      "field": "priority",
+                      "label": "Priority",
+                      "inputType": "select",
+                      "values": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                      ]
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "fields": [
+                    {
+                      "field": "orderNumber",
+                      "label": "Order Number",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "customerName",
+                      "label": "Customer Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "amount",
+                      "label": "Amount",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "pending",
+                        "approved",
+                        "rejected",
+                        "shipped",
+                        "delivered"
+                      ]
+                    },
+                    {
+                      "field": "priority",
+                      "label": "Priority",
+                      "inputType": "select",
+                      "values": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                      ]
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "deleting",
+            "event": "DELETE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation-dialog",
+                  "title": "Delete Order",
+                  "message": "Are you sure you want to delete this order? This action cannot be undone.",
+                  "confirmLabel": "Delete",
+                  "cancelLabel": "Cancel",
+                  "confirmEvent": "CONFIRM_DELETE",
+                  "cancelEvent": "CANCEL",
+                  "variant": "danger"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "deleting",
+            "event": "DELETE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation-dialog",
+                  "title": "Delete Order",
+                  "message": "Are you sure you want to delete this order? This action cannot be undone.",
+                  "confirmLabel": "Delete",
+                  "cancelLabel": "Cancel",
+                  "confirmEvent": "CONFIRM_DELETE",
+                  "cancelEvent": "CANCEL",
+                  "variant": "danger"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "create",
+                "Order",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order created successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Order",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order updated successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CONFIRM_DELETE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "delete",
+                "Order",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order deleted successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "OrdersPage",
+      "path": "/orders",
+      "viewType": "list",
+      "primaryEntity": "Order",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "EntityManagement"
+        }
+      ]
+    },
+    {
+      "name": "OrderApprovalPage",
+      "path": "/orders/:id/approve",
+      "viewType": "detail",
+      "primaryEntity": "Order",
+      "traits": [
+        {
+          "ref": "OrderApproval"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "ORDER_CREATED",
+    "ORDER_UPDATED",
+    "ORDER_DELETED",
+    "ORDER_APPROVED",
+    "ORDER_REJECTED"
+  ],
+  "listens": []
+}

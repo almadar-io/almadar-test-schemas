@@ -1,0 +1,648 @@
+{
+  "name": "User Onboarding Wizard",
+  "entity": {
+    "name": "UserOnboarding",
+    "runtime": true,
+    "singleton": true,
+    "fields": [
+      {
+        "name": "currentStep",
+        "type": "number",
+        "required": true,
+        "default": 1
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "theme",
+        "type": "enum",
+        "values": [
+          "light",
+          "dark",
+          "auto"
+        ],
+        "default": "light"
+      },
+      {
+        "name": "notifications",
+        "type": "boolean",
+        "required": true,
+        "default": true
+      },
+      {
+        "name": "completed",
+        "type": "boolean",
+        "required": true,
+        "default": false
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "OnboardingWizard",
+      "category": "wizard",
+      "linkedEntity": "UserOnboarding",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "welcome",
+            "isInitial": true
+          },
+          {
+            "name": "personalInfo"
+          },
+          {
+            "name": "preferences"
+          },
+          {
+            "name": "complete"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "NEXT",
+            "name": "Next Step"
+          },
+          {
+            "key": "BACK",
+            "name": "Previous Step"
+          },
+          {
+            "key": "SKIP",
+            "name": "Skip Step"
+          },
+          {
+            "key": "FINISH",
+            "name": "Finish Onboarding"
+          },
+          {
+            "key": "RESTART",
+            "name": "Restart Onboarding"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "welcome",
+            "to": "welcome",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 1,
+                  "totalSteps": 3,
+                  "title": "Welcome!",
+                  "description": "Let's get you set up in just a few steps."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "content-section",
+                  "content": "Welcome to our platform! This quick setup will help you personalize your experience and get the most out of our features."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Get Started",
+                    "event": "NEXT",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Skip Setup",
+                      "event": "FINISH",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "welcome",
+            "to": "personalInfo",
+            "event": "NEXT",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "currentStep": 2
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 2,
+                  "totalSteps": 3,
+                  "title": "Tell us about yourself",
+                  "description": "Help us personalize your experience."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-section",
+                  "entity": "UserOnboarding",
+                  "fields": [
+                    {
+                      "field": "name",
+                      "label": "Full Name",
+                      "inputType": "text",
+                      "placeholder": "Enter your full name"
+                    },
+                    {
+                      "field": "email",
+                      "label": "Email Address",
+                      "inputType": "email",
+                      "placeholder": "your@email.com"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Continue",
+                    "event": "NEXT",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Back",
+                      "event": "BACK",
+                      "actionType": "cancel"
+                    },
+                    {
+                      "label": "Skip",
+                      "event": "SKIP",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "personalInfo",
+            "to": "welcome",
+            "event": "BACK",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "currentStep": 1
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 1,
+                  "totalSteps": 3,
+                  "title": "Welcome!",
+                  "description": "Let's get you set up in just a few steps."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "content-section",
+                  "content": "Welcome to our platform! This quick setup will help you personalize your experience and get the most out of our features."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Get Started",
+                    "event": "NEXT",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Skip Setup",
+                      "event": "FINISH",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "personalInfo",
+            "to": "preferences",
+            "event": "NEXT",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "currentStep": 3
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 3,
+                  "totalSteps": 3,
+                  "title": "Set your preferences",
+                  "description": "Customize your experience to your liking."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-section",
+                  "entity": "UserOnboarding",
+                  "fields": [
+                    {
+                      "field": "theme",
+                      "label": "Theme Preference",
+                      "inputType": "select",
+                      "values": [
+                        "light",
+                        "dark",
+                        "auto"
+                      ]
+                    },
+                    {
+                      "field": "notifications",
+                      "label": "Enable Notifications",
+                      "inputType": "checkbox"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Finish Setup",
+                    "event": "FINISH",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Back",
+                      "event": "BACK",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "personalInfo",
+            "to": "preferences",
+            "event": "SKIP",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "currentStep": 3
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 3,
+                  "totalSteps": 3,
+                  "title": "Set your preferences",
+                  "description": "Customize your experience to your liking."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-section",
+                  "entity": "UserOnboarding",
+                  "fields": [
+                    {
+                      "field": "theme",
+                      "label": "Theme Preference",
+                      "inputType": "select",
+                      "values": [
+                        "light",
+                        "dark",
+                        "auto"
+                      ]
+                    },
+                    {
+                      "field": "notifications",
+                      "label": "Enable Notifications",
+                      "inputType": "checkbox"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Finish Setup",
+                    "event": "FINISH",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Back",
+                      "event": "BACK",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "preferences",
+            "to": "personalInfo",
+            "event": "BACK",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "currentStep": 2
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 2,
+                  "totalSteps": 3,
+                  "title": "Tell us about yourself",
+                  "description": "Help us personalize your experience."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-section",
+                  "entity": "UserOnboarding",
+                  "fields": [
+                    {
+                      "field": "name",
+                      "label": "Full Name",
+                      "inputType": "text",
+                      "placeholder": "Enter your full name"
+                    },
+                    {
+                      "field": "email",
+                      "label": "Email Address",
+                      "inputType": "email",
+                      "placeholder": "your@email.com"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Continue",
+                    "event": "NEXT",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Back",
+                      "event": "BACK",
+                      "actionType": "cancel"
+                    },
+                    {
+                      "label": "Skip",
+                      "event": "SKIP",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "preferences",
+            "to": "complete",
+            "event": "FINISH",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "completed": true
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "success-message",
+                  "title": "Setup Complete!",
+                  "message": "Welcome aboard! Your account is now ready to use."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "content-section",
+                  "content": "You're all set! You can always change these preferences later in your account settings."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Get Started",
+                    "navigatesTo": "/dashboard",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Restart Setup",
+                      "event": "RESTART",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "welcome",
+            "to": "complete",
+            "event": "FINISH",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "completed": true
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "success-message",
+                  "title": "Setup Skipped",
+                  "message": "You can complete your profile setup anytime in settings."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Continue to Dashboard",
+                    "navigatesTo": "/dashboard",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Complete Setup Now",
+                      "event": "RESTART",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "complete",
+            "to": "welcome",
+            "event": "RESTART",
+            "effects": [
+              [
+                "update",
+                "UserOnboarding",
+                {
+                  "currentStep": 1,
+                  "completed": false,
+                  "name": "",
+                  "email": "",
+                  "theme": "light",
+                  "notifications": true
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "wizard-step",
+                  "step": 1,
+                  "totalSteps": 3,
+                  "title": "Welcome!",
+                  "description": "Let's get you set up in just a few steps."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "content-section",
+                  "content": "Welcome to our platform! This quick setup will help you personalize your experience and get the most out of our features."
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Get Started",
+                    "event": "NEXT",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Skip Setup",
+                      "event": "FINISH",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "OnboardingPage",
+      "path": "/onboarding",
+      "viewType": "wizard",
+      "primaryEntity": "UserOnboarding",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "OnboardingWizard"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "ONBOARDING_COMPLETED",
+    "ONBOARDING_SKIPPED",
+    "STEP_COMPLETED"
+  ],
+  "listens": [
+    "USER_REGISTERED"
+  ]
+}

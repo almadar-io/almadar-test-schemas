@@ -1,0 +1,188 @@
+{
+  "name": "Feedback Form",
+  "entity": {
+    "name": "Feedback",
+    "collection": "feedback",
+    "fields": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "rating",
+        "type": "number",
+        "required": true,
+        "min": 1,
+        "max": 5
+      },
+      {
+        "name": "createdAt",
+        "type": "date",
+        "required": true
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "FeedbackSubmission",
+      "category": "interaction",
+      "linkedEntity": "Feedback",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "Form",
+            "isInitial": true
+          },
+          {
+            "name": "Submitting"
+          },
+          {
+            "name": "Success"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "SUBMIT",
+            "name": "Submit"
+          },
+          {
+            "key": "SUBMIT_SUCCESS",
+            "name": "Submit Success"
+          },
+          {
+            "key": "NEW_FEEDBACK",
+            "name": "New Feedback"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "Form",
+            "to": "Form",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Feedback Form",
+                "subtitle": "We value your feedback"
+              }],
+              ["render-ui", "main", {
+                "type": "form-section",
+                "entity": "Feedback",
+                "fields": [
+                  {
+                    "field": "name",
+                    "label": "Your Name",
+                    "inputType": "text",
+                    "required": true,
+                    "placeholder": "Enter your name"
+                  },
+                  {
+                    "field": "email",
+                    "label": "Email Address",
+                    "inputType": "email",
+                    "required": true,
+                    "placeholder": "your.email@example.com"
+                  },
+                  {
+                    "field": "rating",
+                    "label": "Rating (1-5)",
+                    "inputType": "select",
+                    "required": true,
+                    "values": [
+                      {"value": 1, "label": "1 - Poor"},
+                      {"value": 2, "label": "2 - Fair"},
+                      {"value": 3, "label": "3 - Good"},
+                      {"value": 4, "label": "4 - Very Good"},
+                      {"value": 5, "label": "5 - Excellent"}
+                    ]
+                  },
+                  {
+                    "field": "message",
+                    "label": "Your Feedback",
+                    "inputType": "textarea",
+                    "required": true,
+                    "placeholder": "Please share your thoughts, suggestions, or concerns..."
+                  }
+                ],
+                "onSubmit": "SUBMIT",
+                "submitLabel": "Submit Feedback"
+              }]
+            ]
+          },
+          {
+            "from": "Form",
+            "to": "Submitting",
+            "event": "SUBMIT",
+            "effects": [
+              ["persist", "create", "Feedback", "@payload.data"],
+              ["render-ui", "toast", {
+                "type": "notification",
+                "message": "Submitting your feedback...",
+                "variant": "info"
+              }]
+            ]
+          },
+          {
+            "from": "Submitting",
+            "to": "Success",
+            "event": "SUBMIT_SUCCESS",
+            "effects": [
+              ["render-ui", "toast", null],
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Thank You!",
+                "subtitle": "Your feedback has been submitted"
+              }],
+              ["render-ui", "main", {
+                "type": "entity-detail",
+                "entity": "Feedback",
+                "fieldNames": ["name", "email", "rating", "message", "createdAt"],
+                "headerActions": [
+                  {
+                    "label": "Submit Another",
+                    "event": "NEW_FEEDBACK",
+                    "variant": "primary"
+                  }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "Success",
+            "to": "Form",
+            "event": "NEW_FEEDBACK",
+            "effects": [
+              ["emit", "INIT"]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "FeedbackPage",
+      "path": "/feedback",
+      "traits": [
+        {
+          "ref": "FeedbackSubmission"
+        }
+      ]
+    }
+  ]
+}

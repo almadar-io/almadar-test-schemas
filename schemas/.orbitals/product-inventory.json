@@ -1,0 +1,220 @@
+{
+  "name": "Product Inventory",
+  "entity": {
+    "name": "Product",
+    "collection": "products",
+    "fields": [
+      { "name": "name", "type": "string", "required": true },
+      { "name": "price", "type": "number", "required": true },
+      { "name": "quantity", "type": "number", "required": true, "default": 0 },
+      { "name": "status", "type": "enum", "values": ["available", "low_stock", "out_of_stock"], "default": "available" }
+    ]
+  },
+  "traits": [
+    {
+      "name": "ProductStatus",
+      "category": "business",
+      "linkedEntity": "Product",
+      "stateMachine": {
+        "states": [
+          { "name": "available", "isInitial": true },
+          { "name": "low_stock" },
+          { "name": "out_of_stock" }
+        ],
+        "events": [
+          { "key": "QUANTITY_UPDATED", "name": "Quantity Updated" },
+          { "key": "CHECK_STOCK_LEVEL", "name": "Check Stock Level" }
+        ],
+        "transitions": [
+          {
+            "from": "available",
+            "to": "low_stock",
+            "event": "QUANTITY_UPDATED",
+            "guard": "{linkedEntity}.quantity < 10 && {linkedEntity}.quantity > 0",
+            "effects": [
+              { "type": "update_field", "config": { "field": "{linkedEntity}.status", "value": "low_stock" } },
+              { "type": "emit_event", "config": { "eventKey": "STOCK_LOW" } }
+            ]
+          },
+          {
+            "from": "available",
+            "to": "out_of_stock",
+            "event": "QUANTITY_UPDATED",
+            "guard": "{linkedEntity}.quantity === 0",
+            "effects": [
+              { "type": "update_field", "config": { "field": "{linkedEntity}.status", "value": "out_of_stock" } },
+              { "type": "emit_event", "config": { "eventKey": "STOCK_DEPLETED" } }
+            ]
+          },
+          {
+            "from": "low_stock",
+            "to": "available",
+            "event": "QUANTITY_UPDATED",
+            "guard": "{linkedEntity}.quantity >= 10",
+            "effects": [
+              { "type": "update_field", "config": { "field": "{linkedEntity}.status", "value": "available" } },
+              { "type": "emit_event", "config": { "eventKey": "STOCK_REPLENISHED" } }
+            ]
+          },
+          {
+            "from": "low_stock",
+            "to": "out_of_stock",
+            "event": "QUANTITY_UPDATED",
+            "guard": "{linkedEntity}.quantity === 0",
+            "effects": [
+              { "type": "update_field", "config": { "field": "{linkedEntity}.status", "value": "out_of_stock" } },
+              { "type": "emit_event", "config": { "eventKey": "STOCK_DEPLETED" } }
+            ]
+          },
+          {
+            "from": "out_of_stock",
+            "to": "low_stock",
+            "event": "QUANTITY_UPDATED",
+            "guard": "{linkedEntity}.quantity > 0 && {linkedEntity}.quantity < 10",
+            "effects": [
+              { "type": "update_field", "config": { "field": "{linkedEntity}.status", "value": "low_stock" } },
+              { "type": "emit_event", "config": { "eventKey": "STOCK_LOW" } }
+            ]
+          },
+          {
+            "from": "out_of_stock",
+            "to": "available",
+            "event": "QUANTITY_UPDATED",
+            "guard": "{linkedEntity}.quantity >= 10",
+            "effects": [
+              { "type": "update_field", "config": { "field": "{linkedEntity}.status", "value": "available" } },
+              { "type": "emit_event", "config": { "eventKey": "STOCK_REPLENISHED" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "EntityManagement",
+      "category": "interaction",
+      "linkedEntity": "Product",
+      "stateMachine": {
+        "states": [
+          { "name": "browsing", "isInitial": true },
+          { "name": "creating" },
+          { "name": "viewing" },
+          { "name": "editing" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CREATE", "name": "Create" },
+          { "key": "VIEW", "name": "View" },
+          { "key": "EDIT", "name": "Edit" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "main", "pattern": { "type": "page-header", "title": "Product Inventory", "actions": [{ "label": "Add Product", "event": "CREATE", "variant": "primary" }] } } },
+              { "type": "render_ui", "config": { "target": "main", "pattern": { "type": "entity-table", "entity": "Product", "columns": ["name", "price", "quantity", "status"], "itemActions": [{ "label": "View", "event": "VIEW", "placement": "row" }, { "label": "Edit", "event": "EDIT", "placement": "menu" }] } } }
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "modal", "pattern": { "type": "form-section", "entity": "Product", "fields": [{ "field": "name", "label": "Product Name", "inputType": "text" }, { "field": "price", "label": "Price", "inputType": "number" }, { "field": "quantity", "label": "Quantity", "inputType": "number" }] } } },
+              { "type": "render_ui", "config": { "target": "modal", "pattern": { "type": "form-actions", "primary": { "label": "Create Product", "event": "SAVE", "actionType": "submit" }, "secondary": [{ "label": "Cancel", "event": "CANCEL", "actionType": "cancel" }] } } }
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "drawer", "pattern": { "type": "entity-detail", "entity": "Product", "fieldNames": ["name", "price", "quantity", "status"], "actions": [{ "label": "Edit", "event": "EDIT", "variant": "primary" }] } } }
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "modal", "pattern": { "type": "form-section", "entity": "Product", "fields": [{ "field": "name", "label": "Product Name", "inputType": "text" }, { "field": "price", "label": "Price", "inputType": "number" }, { "field": "quantity", "label": "Quantity", "inputType": "number" }] } } },
+              { "type": "render_ui", "config": { "target": "modal", "pattern": { "type": "form-actions", "primary": { "label": "Save Changes", "event": "SAVE", "actionType": "submit" }, "secondary": [{ "label": "Cancel", "event": "CANCEL", "actionType": "cancel" }] } } }
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "drawer", "pattern": null } },
+              { "type": "render_ui", "config": { "target": "modal", "pattern": { "type": "form-section", "entity": "Product", "fields": [{ "field": "name", "label": "Product Name", "inputType": "text" }, { "field": "price", "label": "Price", "inputType": "number" }, { "field": "quantity", "label": "Quantity", "inputType": "number" }] } } },
+              { "type": "render_ui", "config": { "target": "modal", "pattern": { "type": "form-actions", "primary": { "label": "Save Changes", "event": "SAVE", "actionType": "submit" }, "secondary": [{ "label": "Cancel", "event": "CANCEL", "actionType": "cancel" }] } } }
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "modal", "pattern": null } },
+              { "type": "persist_data", "config": { "entity": "Product", "operation": "create" } },
+              { "type": "emit_event", "config": { "eventKey": "QUANTITY_UPDATED" } }
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "modal", "pattern": null } },
+              { "type": "persist_data", "config": { "entity": "Product", "operation": "update" } },
+              { "type": "emit_event", "config": { "eventKey": "QUANTITY_UPDATED" } }
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "modal", "pattern": null } }
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "modal", "pattern": null } }
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              { "type": "render_ui", "config": { "target": "drawer", "pattern": null } }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "ProductInventoryPage",
+      "path": "/inventory",
+      "viewType": "list",
+      "primaryEntity": "Product",
+      "isInitial": true,
+      "traits": [
+        { "ref": "EntityManagement" },
+        { "ref": "ProductStatus" }
+      ]
+    }
+  ],
+  "emits": ["STOCK_DEPLETED", "STOCK_LOW", "STOCK_REPLENISHED"],
+  "listens": []
+}

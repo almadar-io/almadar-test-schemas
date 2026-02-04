@@ -1,0 +1,1778 @@
+{
+  "name": "ProjectManagementSuite",
+  "version": "2.1.0",
+  "description": "Enterprise project management application with tasks, sprints, teams, and reporting",
+  "orbitals": [
+    {
+      "name": "ProjectOrbital",
+      "entity": {
+        "name": "Project",
+        "persistence": {
+          "collection": "projects"
+        },
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "planning",
+              "active",
+              "on_hold",
+              "completed",
+              "archived"
+            ],
+            "default": "planning"
+          },
+          {
+            "name": "startDate",
+            "type": "date"
+          },
+          {
+            "name": "endDate",
+            "type": "date"
+          },
+          {
+            "name": "budget",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "spentBudget",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "ownerId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "teamIds",
+            "type": "array"
+          },
+          {
+            "name": "visibility",
+            "type": "enum",
+            "values": [
+              "private",
+              "team",
+              "public"
+            ],
+            "default": "team"
+          },
+          {
+            "name": "tags",
+            "type": "array"
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "updatedAt",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "ref": "ProjectInteraction"
+        },
+        {
+          "ref": "ProjectLifecycle"
+        }
+      ],
+      "pages": [
+        {
+          "name": "ProjectsPage",
+          "path": "/projects",
+          "traits": [
+            {
+              "ref": "ProjectInteraction"
+            }
+          ]
+        },
+        {
+          "name": "ProjectDetailPage",
+          "path": "/projects/:id",
+          "traits": [
+            {
+              "ref": "ProjectInteraction"
+            }
+          ]
+        }
+      ],
+      "emits": [
+        "PROJECT_CREATED",
+        "PROJECT_UPDATED",
+        "PROJECT_ARCHIVED",
+        "PROJECT_COMPLETED"
+      ],
+      "listens": [
+        {
+          "event": "SPRINT_COMPLETED",
+          "dispatch": "CHECK_PROJECT_COMPLETION"
+        }
+      ]
+    },
+    {
+      "name": "SprintOrbital",
+      "entity": {
+        "name": "Sprint",
+        "persistence": {
+          "collection": "sprints"
+        },
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "projectId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "goal",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "planning",
+              "active",
+              "review",
+              "completed"
+            ],
+            "default": "planning"
+          },
+          {
+            "name": "startDate",
+            "type": "date",
+            "required": true
+          },
+          {
+            "name": "endDate",
+            "type": "date",
+            "required": true
+          },
+          {
+            "name": "velocity",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "plannedPoints",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "completedPoints",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "updatedAt",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "ref": "SprintInteraction"
+        },
+        {
+          "ref": "SprintLifecycle"
+        }
+      ],
+      "pages": [
+        {
+          "name": "SprintsPage",
+          "path": "/projects/:projectId/sprints",
+          "traits": [
+            {
+              "ref": "SprintInteraction"
+            }
+          ]
+        }
+      ],
+      "emits": [
+        "SPRINT_STARTED",
+        "SPRINT_COMPLETED",
+        "SPRINT_VELOCITY_UPDATED"
+      ],
+      "listens": [
+        {
+          "event": "TASK_COMPLETED",
+          "dispatch": "UPDATE_SPRINT_PROGRESS"
+        }
+      ]
+    },
+    {
+      "name": "TaskOrbital",
+      "entity": {
+        "name": "Task",
+        "persistence": {
+          "collection": "tasks"
+        },
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "in_review",
+              "done"
+            ],
+            "default": "backlog"
+          },
+          {
+            "name": "priority",
+            "type": "enum",
+            "values": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "default": "medium"
+          },
+          {
+            "name": "type",
+            "type": "enum",
+            "values": [
+              "feature",
+              "bug",
+              "chore",
+              "spike"
+            ],
+            "default": "feature"
+          },
+          {
+            "name": "storyPoints",
+            "type": "number"
+          },
+          {
+            "name": "projectId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sprintId",
+            "type": "string"
+          },
+          {
+            "name": "assigneeId",
+            "type": "string"
+          },
+          {
+            "name": "reporterId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "labelIds",
+            "type": "array"
+          },
+          {
+            "name": "dueDate",
+            "type": "date"
+          },
+          {
+            "name": "estimatedHours",
+            "type": "number"
+          },
+          {
+            "name": "loggedHours",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "blockedBy",
+            "type": "array"
+          },
+          {
+            "name": "blocks",
+            "type": "array"
+          },
+          {
+            "name": "attachments",
+            "type": "array"
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "updatedAt",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "ref": "TaskInteraction"
+        },
+        {
+          "ref": "TaskWorkflow"
+        }
+      ],
+      "pages": [
+        {
+          "name": "TaskBoardPage",
+          "path": "/projects/:projectId/board",
+          "traits": [
+            {
+              "ref": "TaskInteraction"
+            }
+          ]
+        },
+        {
+          "name": "TaskListPage",
+          "path": "/projects/:projectId/tasks",
+          "traits": [
+            {
+              "ref": "TaskInteraction"
+            }
+          ]
+        },
+        {
+          "name": "TaskDetailPage",
+          "path": "/tasks/:id",
+          "traits": [
+            {
+              "ref": "TaskInteraction"
+            }
+          ]
+        }
+      ],
+      "emits": [
+        "TASK_CREATED",
+        "TASK_UPDATED",
+        "TASK_ASSIGNED",
+        "TASK_COMPLETED",
+        "TASK_BLOCKED"
+      ],
+      "listens": []
+    }
+  ],
+  "traits": [
+    {
+      "name": "ProjectInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "archiving"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Project"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Project"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Project"
+          },
+          {
+            "key": "ARCHIVE",
+            "name": "Archive Project"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          },
+          {
+            "key": "CONFIRM",
+            "name": "Confirm"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Projects",
+                  "actions": [
+                    {
+                      "label": "New Project",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-cards",
+                  "entity": "Project",
+                  "fieldNames": [
+                    "name",
+                    "status",
+                    "startDate",
+                    "endDate"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Archive",
+                      "event": "ARCHIVE",
+                      "variant": "destructive"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Project",
+                  "title": "Create Project",
+                  "fields": [
+                    "name",
+                    "description",
+                    "startDate",
+                    "endDate",
+                    "budget",
+                    "visibility"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "PROJECT_CREATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Project",
+                  "fieldNames": [
+                    "name",
+                    "description",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "budget",
+                    "spentBudget"
+                  ],
+                  "headerActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CANCEL"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": [
+              "browsing",
+              "viewing"
+            ],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Project",
+                  "title": "Edit Project",
+                  "fields": [
+                    "name",
+                    "description",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "budget",
+                    "visibility"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "PROJECT_UPDATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "archiving",
+            "event": "ARCHIVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation",
+                  "title": "Archive Project",
+                  "message": "Are you sure you want to archive this project? All associated sprints and tasks will be archived.",
+                  "onConfirm": "CONFIRM",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "archiving",
+            "to": "browsing",
+            "event": "CONFIRM",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "archived"
+              ],
+              [
+                "emit",
+                "PROJECT_ARCHIVED",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "archiving",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectLifecycle",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "planning",
+            "isInitial": true
+          },
+          {
+            "name": "active"
+          },
+          {
+            "name": "on_hold"
+          },
+          {
+            "name": "completed"
+          },
+          {
+            "name": "archived"
+          }
+        ],
+        "events": [
+          {
+            "key": "START",
+            "name": "Start Project"
+          },
+          {
+            "key": "PAUSE",
+            "name": "Pause Project"
+          },
+          {
+            "key": "RESUME",
+            "name": "Resume Project"
+          },
+          {
+            "key": "COMPLETE",
+            "name": "Complete Project"
+          },
+          {
+            "key": "ARCHIVE",
+            "name": "Archive Project"
+          },
+          {
+            "key": "CHECK_PROJECT_COMPLETION",
+            "name": "Check Completion"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "planning",
+            "to": "active",
+            "event": "START",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "active"
+              ],
+              [
+                "emit",
+                "PROJECT_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "on_hold",
+            "event": "PAUSE",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "on_hold"
+              ],
+              [
+                "emit",
+                "PROJECT_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "on_hold",
+            "to": "active",
+            "event": "RESUME",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "active"
+              ],
+              [
+                "emit",
+                "PROJECT_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "completed",
+            "event": "COMPLETE",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "completed"
+              ],
+              [
+                "emit",
+                "PROJECT_COMPLETED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": [
+              "planning",
+              "active",
+              "on_hold",
+              "completed"
+            ],
+            "to": "archived",
+            "event": "ARCHIVE",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "archived"
+              ],
+              [
+                "emit",
+                "PROJECT_ARCHIVED",
+                "@entity"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "SprintInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Sprint"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Sprint"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Sprint"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Sprints",
+                  "actions": [
+                    {
+                      "label": "New Sprint",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Sprint",
+                  "columns": [
+                    "name",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "velocity"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Sprint",
+                  "title": "Create Sprint",
+                  "fields": [
+                    "name",
+                    "goal",
+                    "startDate",
+                    "endDate",
+                    "plannedPoints"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "SPRINT_CREATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Sprint",
+                  "fieldNames": [
+                    "name",
+                    "goal",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "plannedPoints",
+                    "completedPoints",
+                    "velocity"
+                  ],
+                  "headerActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CANCEL"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": [
+              "browsing",
+              "viewing"
+            ],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Sprint",
+                  "title": "Edit Sprint",
+                  "fields": [
+                    "name",
+                    "goal",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "plannedPoints"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "SPRINT_UPDATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "SprintLifecycle",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "planning",
+            "isInitial": true
+          },
+          {
+            "name": "active"
+          },
+          {
+            "name": "review"
+          },
+          {
+            "name": "completed"
+          }
+        ],
+        "events": [
+          {
+            "key": "START_SPRINT",
+            "name": "Start Sprint"
+          },
+          {
+            "key": "END_SPRINT",
+            "name": "End Sprint"
+          },
+          {
+            "key": "COMPLETE_REVIEW",
+            "name": "Complete Review"
+          },
+          {
+            "key": "UPDATE_SPRINT_PROGRESS",
+            "name": "Update Progress"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "planning",
+            "to": "active",
+            "event": "START_SPRINT",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "active"
+              ],
+              [
+                "emit",
+                "SPRINT_STARTED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "review",
+            "event": "END_SPRINT",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "review"
+              ]
+            ]
+          },
+          {
+            "from": "review",
+            "to": "completed",
+            "event": "COMPLETE_REVIEW",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "completed"
+              ],
+              [
+                "emit",
+                "SPRINT_COMPLETED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "active",
+            "event": "UPDATE_SPRINT_PROGRESS",
+            "effects": [
+              [
+                "increment",
+                "@entity.completedPoints",
+                "@payload.points"
+              ],
+              [
+                "emit",
+                "SPRINT_VELOCITY_UPDATED",
+                "@entity"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "assigning"
+          },
+          {
+            "name": "deleting"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Task"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Task"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Task"
+          },
+          {
+            "key": "ASSIGN",
+            "name": "Assign Task"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete Task"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          },
+          {
+            "key": "CONFIRM",
+            "name": "Confirm"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Tasks",
+                  "actions": [
+                    {
+                      "label": "New Task",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Task",
+                  "columns": [
+                    "title",
+                    "status",
+                    "priority",
+                    "type",
+                    "assigneeId",
+                    "dueDate"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Assign",
+                      "event": "ASSIGN"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "variant": "destructive"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Task",
+                  "title": "Create Task",
+                  "fields": [
+                    "title",
+                    "description",
+                    "type",
+                    "priority",
+                    "storyPoints",
+                    "dueDate",
+                    "estimatedHours"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "TASK_CREATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Task",
+                  "fieldNames": [
+                    "title",
+                    "description",
+                    "status",
+                    "priority",
+                    "type",
+                    "storyPoints",
+                    "assigneeId",
+                    "dueDate",
+                    "estimatedHours",
+                    "loggedHours"
+                  ],
+                  "headerActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Assign",
+                      "event": "ASSIGN"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CANCEL"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": [
+              "browsing",
+              "viewing"
+            ],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Task",
+                  "title": "Edit Task",
+                  "fields": [
+                    "title",
+                    "description",
+                    "status",
+                    "type",
+                    "priority",
+                    "storyPoints",
+                    "dueDate",
+                    "estimatedHours"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": [
+              "browsing",
+              "viewing"
+            ],
+            "to": "assigning",
+            "event": "ASSIGN",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Task",
+                  "title": "Assign Task",
+                  "fields": [
+                    "assigneeId"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "assigning",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "TASK_ASSIGNED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "assigning",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "deleting",
+            "event": "DELETE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation",
+                  "title": "Delete Task",
+                  "message": "Are you sure you want to delete this task? This action cannot be undone.",
+                  "onConfirm": "CONFIRM",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CONFIRM",
+            "effects": [
+              [
+                "emit",
+                "TASK_DELETED",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskWorkflow",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "backlog",
+            "isInitial": true
+          },
+          {
+            "name": "todo"
+          },
+          {
+            "name": "in_progress"
+          },
+          {
+            "name": "in_review"
+          },
+          {
+            "name": "done"
+          }
+        ],
+        "events": [
+          {
+            "key": "MOVE_TO_TODO",
+            "name": "Move to Todo"
+          },
+          {
+            "key": "START_WORK",
+            "name": "Start Work"
+          },
+          {
+            "key": "SUBMIT_FOR_REVIEW",
+            "name": "Submit for Review"
+          },
+          {
+            "key": "APPROVE",
+            "name": "Approve"
+          },
+          {
+            "key": "REQUEST_CHANGES",
+            "name": "Request Changes"
+          },
+          {
+            "key": "REOPEN",
+            "name": "Reopen"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "backlog",
+            "to": "todo",
+            "event": "MOVE_TO_TODO",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "todo"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "todo",
+            "to": "in_progress",
+            "event": "START_WORK",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "in_progress"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "in_progress",
+            "to": "in_review",
+            "event": "SUBMIT_FOR_REVIEW",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "in_review"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "in_review",
+            "to": "done",
+            "event": "APPROVE",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "done"
+              ],
+              [
+                "emit",
+                "TASK_COMPLETED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "in_review",
+            "to": "in_progress",
+            "event": "REQUEST_CHANGES",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "in_progress"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "done",
+            "to": "todo",
+            "event": "REOPEN",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "todo"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

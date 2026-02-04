@@ -1,0 +1,395 @@
+{
+  "name": "Neural Navigator",
+  "description": "Demonstrates explicit neural network constraints with cross-trait communication",
+  "version": "1.0.0",
+  "orbitals": [
+    {
+      "name": "Neural Proposer",
+      "entity": {
+        "name": "Brain",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "nnOutput", "type": "array", "default": [0, 0, 0, 0], "description": "Raw neural network output [vx, vy, vz, confidence]" },
+          {
+            "name": "architecture",
+            "type": "object",
+            "description": "Neural network architecture - explicit and readable",
+            "default": ["nn/sequential",
+              ["nn/linear", 16, 64, { "name": "encoder" }],
+              ["nn/relu"],
+              ["nn/linear", 64, 32, { "name": "hidden" }],
+              ["nn/relu"],
+              ["nn/linear", 32, 4, { "name": "velocity_output" }]
+            ]
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "NeuralProposer",
+          "category": "interaction",
+          "linkedEntity": "Brain",
+          "description": "Runs neural network forward pass and proposes movement",
+          "emits": [
+            {
+              "event": "MOVEMENT_PROPOSED",
+              "scope": "external",
+              "description": "Emitted when NN produces a movement proposal",
+              "payload": [
+                { "name": "vx", "type": "number", "description": "Velocity X" },
+                { "name": "vy", "type": "number", "description": "Velocity Y" },
+                { "name": "vz", "type": "number", "description": "Velocity Z" },
+                { "name": "confidence", "type": "number", "description": "Confidence score" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "ready", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "SENSOR_UPDATE", "name": "Sensor Update" }
+            ],
+            "transitions": [
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Neural Proposer",
+                    "subtitle": "NN forward pass module"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "SENSOR_UPDATE",
+                "description": "Forward pass through neural network, emit proposed movement",
+                "effects": [
+                  ["set", "@entity.nnOutput", ["nn/forward", "@entity.architecture", "@payload.sensors"]],
+                  ["emit", "MOVEMENT_PROPOSED", {
+                    "vx": ["tensor/get", "@entity.nnOutput", 0],
+                    "vy": ["tensor/get", "@entity.nnOutput", 1],
+                    "vz": ["tensor/get", "@entity.nnOutput", 2],
+                    "confidence": ["tensor/get", "@entity.nnOutput", 3]
+                  }]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "ProposerPage",
+          "path": "/proposer",
+          "isInitial": true,
+          "traits": [{ "ref": "NeuralProposer", "linkedEntity": "Brain" }]
+        }
+      ]
+    },
+    {
+      "name": "Movement Guard",
+      "entity": {
+        "name": "Guardian",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "maxSpeed", "type": "number", "default": 10.0 },
+          { "name": "confidence", "type": "number", "default": 0 },
+          { "name": "detectedObstacles", "type": "array", "default": [] },
+          { "name": "lastRejectionReason", "type": "string" }
+        ]
+      },
+      "traits": [
+        {
+          "name": "MovementGuard",
+          "category": "interaction",
+          "linkedEntity": "Guardian",
+          "description": "Validates proposed movements against explicit constraints",
+          "listens": [
+            {
+              "event": "MOVEMENT_PROPOSED",
+              "triggers": "VALIDATE_MOVEMENT",
+              "scope": "external",
+              "description": "Validates proposed movement from neural network"
+            }
+          ],
+          "emits": [
+            {
+              "event": "MOVEMENT_ACCEPTED",
+              "scope": "external",
+              "description": "Emitted when movement passes all guards",
+              "payload": [
+                { "name": "vx", "type": "number" },
+                { "name": "vy", "type": "number" },
+                { "name": "vz", "type": "number" }
+              ]
+            },
+            {
+              "event": "MOVEMENT_REJECTED",
+              "scope": "external",
+              "description": "Emitted when movement fails guards",
+              "payload": [
+                { "name": "reason", "type": "string" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "guarding", "isInitial": true },
+              { "name": "blocked" }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "VALIDATE_MOVEMENT", "name": "Validate Movement" },
+              { "key": "OBSTACLE_CLEARED", "name": "Obstacle Cleared" }
+            ],
+            "transitions": [
+              {
+                "from": "guarding",
+                "to": "guarding",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Movement Guard",
+                    "subtitle": "Explicit constraint validation"
+                  }]
+                ]
+              },
+              {
+                "from": "guarding",
+                "to": "guarding",
+                "event": "VALIDATE_MOVEMENT",
+                "description": "All guards pass: speed OK, confidence high, no obstacles",
+                "guard": ["and",
+                  ["<=", ["math/magnitude", "@payload.vx", "@payload.vy", "@payload.vz"], "@entity.maxSpeed"],
+                  [">=", "@payload.confidence", 0.7],
+                  ["not", ["path/intersects", "@payload", "@entity.detectedObstacles"]]
+                ],
+                "effects": [
+                  ["set", "@entity.confidence", "@payload.confidence"],
+                  ["emit", "MOVEMENT_ACCEPTED", {
+                    "vx": "@payload.vx",
+                    "vy": "@payload.vy",
+                    "vz": "@payload.vz"
+                  }]
+                ]
+              },
+              {
+                "from": "guarding",
+                "to": "guarding",
+                "event": "VALIDATE_MOVEMENT",
+                "description": "Guard fails: speed exceeds limit",
+                "guard": [">", ["math/magnitude", "@payload.vx", "@payload.vy", "@payload.vz"], "@entity.maxSpeed"],
+                "effects": [
+                  ["set", "@entity.lastRejectionReason", "speed limit exceeded"],
+                  ["emit", "MOVEMENT_REJECTED", {
+                    "reason": "speed limit exceeded",
+                    "proposed": ["math/magnitude", "@payload.vx", "@payload.vy", "@payload.vz"],
+                    "limit": "@entity.maxSpeed"
+                  }]
+                ]
+              },
+              {
+                "from": "guarding",
+                "to": "guarding",
+                "event": "VALIDATE_MOVEMENT",
+                "description": "Guard fails: confidence too low",
+                "guard": ["<", "@payload.confidence", 0.7],
+                "effects": [
+                  ["set", "@entity.lastRejectionReason", "low confidence"],
+                  ["emit", "MOVEMENT_REJECTED", {
+                    "reason": "low confidence",
+                    "confidence": "@payload.confidence",
+                    "threshold": 0.7
+                  }]
+                ]
+              },
+              {
+                "from": "guarding",
+                "to": "blocked",
+                "event": "VALIDATE_MOVEMENT",
+                "description": "Guard fails: obstacle in path",
+                "guard": ["path/intersects", "@payload", "@entity.detectedObstacles"],
+                "effects": [
+                  ["set", "@entity.lastRejectionReason", "obstacle in path"],
+                  ["emit", "MOVEMENT_REJECTED", {
+                    "reason": "obstacle in path",
+                    "obstacles": ["path/intersecting", "@payload", "@entity.detectedObstacles"]
+                  }]
+                ]
+              },
+              {
+                "from": "blocked",
+                "to": "guarding",
+                "event": "OBSTACLE_CLEARED",
+                "effects": [
+                  ["set", "@entity.detectedObstacles", []],
+                  ["set", "@entity.lastRejectionReason", ""]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "GuardPage",
+          "path": "/guard",
+          "traits": [{ "ref": "MovementGuard", "linkedEntity": "Guardian" }]
+        }
+      ]
+    },
+    {
+      "name": "Movement Executor",
+      "entity": {
+        "name": "Actuator",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "velocity", "type": "array", "default": [0, 0, 0] }
+        ]
+      },
+      "traits": [
+        {
+          "name": "MovementExecutor",
+          "category": "interaction",
+          "linkedEntity": "Actuator",
+          "description": "Executes accepted movements",
+          "listens": [
+            {
+              "event": "MOVEMENT_ACCEPTED",
+              "triggers": "EXECUTE_MOVEMENT",
+              "scope": "external",
+              "description": "Executes movement when accepted by guard"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "idle", "isInitial": true },
+              { "name": "moving" }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "EXECUTE_MOVEMENT", "name": "Execute Movement" },
+              { "key": "MOVEMENT_COMPLETE", "name": "Movement Complete" }
+            ],
+            "transitions": [
+              {
+                "from": "idle",
+                "to": "idle",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Movement Executor",
+                    "subtitle": "Actuator control module"
+                  }]
+                ]
+              },
+              {
+                "from": "idle",
+                "to": "moving",
+                "event": "EXECUTE_MOVEMENT",
+                "description": "Start executing the accepted movement",
+                "effects": [
+                  ["set", "@entity.velocity", ["array/from", "@payload.vx", "@payload.vy", "@payload.vz"]]
+                ]
+              },
+              {
+                "from": "moving",
+                "to": "idle",
+                "event": "MOVEMENT_COMPLETE",
+                "effects": [
+                  ["set", "@entity.velocity", [0, 0, 0]]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "ExecutorPage",
+          "path": "/executor",
+          "traits": [{ "ref": "MovementExecutor", "linkedEntity": "Actuator" }]
+        }
+      ]
+    },
+    {
+      "name": "Rejection Logger",
+      "entity": {
+        "name": "Logger",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "rejectionCount", "type": "number", "default": 0 },
+          { "name": "lastRejection", "type": "object" }
+        ]
+      },
+      "traits": [
+        {
+          "name": "RejectionLogger",
+          "category": "interaction",
+          "linkedEntity": "Logger",
+          "description": "Logs rejected movements for debugging",
+          "listens": [
+            {
+              "event": "MOVEMENT_REJECTED",
+              "triggers": "LOG_REJECTION",
+              "scope": "external",
+              "description": "Logs rejection when movement is rejected"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "logging", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "LOG_REJECTION", "name": "Log Rejection" }
+            ],
+            "transitions": [
+              {
+                "from": "logging",
+                "to": "logging",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Rejection Logger",
+                    "subtitle": "Debug and monitoring"
+                  }]
+                ]
+              },
+              {
+                "from": "logging",
+                "to": "logging",
+                "event": "LOG_REJECTION",
+                "description": "Log the rejection reason",
+                "effects": [
+                  ["set", "@entity.lastRejection", "@payload"],
+                  ["set", "@entity.rejectionCount", ["+", "@entity.rejectionCount", 1]]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "LoggerPage",
+          "path": "/logger",
+          "traits": [{ "ref": "RejectionLogger", "linkedEntity": "Logger" }]
+        }
+      ]
+    }
+  ]
+}

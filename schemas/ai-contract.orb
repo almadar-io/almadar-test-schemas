@@ -1,0 +1,314 @@
+{
+  "name": "AI Contract",
+  "description": "Demonstrates explicit input/output contracts for neural networks with cross-orbital communication",
+  "version": "1.0.0",
+  "orbitals": [
+    {
+      "name": "Contract Enforcer",
+      "entity": {
+        "name": "Model",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "lastInput", "type": "array" },
+          { "name": "rawOutput", "type": "array", "default": [] },
+          { "name": "clampedOutput", "type": "array", "default": [] },
+          { "name": "violations", "type": "array", "default": [] },
+          {
+            "name": "architecture",
+            "type": "object",
+            "description": "The network architecture - explicit and readable",
+            "default": ["nn/sequential",
+              ["nn/linear", 16, 64],
+              ["nn/relu"],
+              ["nn/linear", 64, 4]
+            ]
+          },
+          {
+            "name": "inputContract",
+            "type": "object",
+            "description": "What the network receives - shape, range, meaning",
+            "default": {
+              "shape": [16],
+              "range": [-1.0, 1.0],
+              "meaning": [
+                "sensor_1", "sensor_2", "sensor_3", "sensor_4",
+                "sensor_5", "sensor_6", "sensor_7", "sensor_8",
+                "sensor_9", "sensor_10", "sensor_11", "sensor_12",
+                "sensor_13", "sensor_14", "sensor_15", "sensor_16"
+              ]
+            }
+          },
+          {
+            "name": "outputContract",
+            "type": "object",
+            "description": "What the network can produce - explicit ranges per dimension",
+            "default": {
+              "shape": [4],
+              "ranges": {
+                "0": { "min": -10.0, "max": 10.0, "meaning": "velocity_x" },
+                "1": { "min": -10.0, "max": 10.0, "meaning": "velocity_y" },
+                "2": { "min": -2.0, "max": 2.0, "meaning": "velocity_z (constrained)" },
+                "3": { "min": 0.0, "max": 1.0, "meaning": "confidence" }
+              }
+            }
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ContractEnforcer",
+          "category": "interaction",
+          "linkedEntity": "Model",
+          "description": "Neural network bound by explicit input/output contracts",
+          "emits": [
+            {
+              "event": "OUTPUT_READY",
+              "scope": "external",
+              "description": "Model produced output within contract",
+              "payload": [
+                { "name": "raw", "type": "array" },
+                { "name": "clamped", "type": "array" },
+                { "name": "violations", "type": "array" }
+              ]
+            },
+            {
+              "event": "CONTRACT_VIOLATION",
+              "scope": "external",
+              "description": "Input violated contract",
+              "payload": [
+                { "name": "type", "type": "string" },
+                { "name": "details", "type": "object" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "ready", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "FORWARD_PASS", "name": "Forward Pass" }
+            ],
+            "transitions": [
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "AI Contract Enforcer",
+                    "subtitle": "Explicit input/output bounds"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "FORWARD_PASS",
+                "description": "Input passes contract validation",
+                "guard": ["and",
+                  ["=", ["tensor/shape", "@payload.input"], "@entity.inputContract.shape"],
+                  ["tensor/allInRange", "@payload.input", "@entity.inputContract.range"]
+                ],
+                "effects": [
+                  ["set", "@entity.lastInput", "@payload.input"],
+                  ["set", "@entity.rawOutput", ["nn/forward", "@entity.architecture", "@payload.input"]],
+                  ["set", "@entity.clampedOutput", ["tensor/clampPerDim", "@entity.rawOutput", "@entity.outputContract.ranges"]],
+                  ["set", "@entity.violations", ["tensor/outOfRangeDims", "@entity.rawOutput", "@entity.outputContract.ranges"]],
+                  ["emit", "OUTPUT_READY", {
+                    "raw": "@entity.rawOutput",
+                    "clamped": "@entity.clampedOutput",
+                    "violations": "@entity.violations"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "FORWARD_PASS",
+                "description": "Input shape mismatch",
+                "guard": ["!=", ["tensor/shape", "@payload.input"], "@entity.inputContract.shape"],
+                "effects": [
+                  ["emit", "CONTRACT_VIOLATION", {
+                    "type": "input_shape_mismatch",
+                    "details": {
+                      "expected": "@entity.inputContract.shape",
+                      "received": ["tensor/shape", "@payload.input"]
+                    }
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "FORWARD_PASS",
+                "description": "Input values out of range",
+                "guard": ["and",
+                  ["=", ["tensor/shape", "@payload.input"], "@entity.inputContract.shape"],
+                  ["not", ["tensor/allInRange", "@payload.input", "@entity.inputContract.range"]]
+                ],
+                "effects": [
+                  ["emit", "CONTRACT_VIOLATION", {
+                    "type": "input_out_of_range",
+                    "details": {
+                      "allowedRange": "@entity.inputContract.range",
+                      "outOfRangeIndices": ["tensor/outOfRangeIndices", "@payload.input", "@entity.inputContract.range"]
+                    }
+                  }]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "EnforcerPage",
+          "path": "/enforcer",
+          "isInitial": true,
+          "traits": [{ "ref": "ContractEnforcer", "linkedEntity": "Model" }]
+        }
+      ]
+    },
+    {
+      "name": "Output Consumer",
+      "entity": {
+        "name": "Consumer",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "lastOutput", "type": "array", "default": [] },
+          { "name": "outputCount", "type": "number", "default": 0 },
+          { "name": "violationCount", "type": "number", "default": 0 }
+        ]
+      },
+      "traits": [
+        {
+          "name": "OutputConsumer",
+          "category": "interaction",
+          "linkedEntity": "Consumer",
+          "description": "Consumes valid model outputs",
+          "listens": [
+            {
+              "event": "OUTPUT_READY",
+              "triggers": "CONSUME_OUTPUT",
+              "scope": "external",
+              "description": "Processes model output"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "ready", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "CONSUME_OUTPUT", "name": "Consume Output" }
+            ],
+            "transitions": [
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Output Consumer",
+                    "subtitle": "Processing model outputs"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "CONSUME_OUTPUT",
+                "description": "Process the clamped output",
+                "effects": [
+                  ["set", "@entity.lastOutput", "@payload.clamped"],
+                  ["set", "@entity.outputCount", ["+", "@entity.outputCount", 1]],
+                  ["set", "@entity.violationCount", ["+", "@entity.violationCount", ["array/length", "@payload.violations"]]]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "ConsumerPage",
+          "path": "/consumer",
+          "traits": [{ "ref": "OutputConsumer", "linkedEntity": "Consumer" }]
+        }
+      ]
+    },
+    {
+      "name": "Violation Logger",
+      "entity": {
+        "name": "ViolationLog",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "violations", "type": "array", "default": [] },
+          { "name": "violationCount", "type": "number", "default": 0 }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ViolationLogger",
+          "category": "interaction",
+          "linkedEntity": "ViolationLog",
+          "description": "Logs contract violations for debugging",
+          "listens": [
+            {
+              "event": "CONTRACT_VIOLATION",
+              "triggers": "LOG_VIOLATION",
+              "scope": "external",
+              "description": "Logs contract violation"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "logging", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "LOG_VIOLATION", "name": "Log Violation" }
+            ],
+            "transitions": [
+              {
+                "from": "logging",
+                "to": "logging",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Violation Logger",
+                    "subtitle": "Contract enforcement monitoring"
+                  }]
+                ]
+              },
+              {
+                "from": "logging",
+                "to": "logging",
+                "event": "LOG_VIOLATION",
+                "description": "Log the violation",
+                "effects": [
+                  ["set", "@entity.violations", ["array/append", "@entity.violations", "@payload"]],
+                  ["set", "@entity.violationCount", ["+", "@entity.violationCount", 1]]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "LoggerPage",
+          "path": "/logger",
+          "traits": [{ "ref": "ViolationLogger", "linkedEntity": "ViolationLog" }]
+        }
+      ]
+    }
+  ]
+}

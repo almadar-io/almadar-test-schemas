@@ -1,0 +1,65 @@
+{
+  "name": "Import Theme Test",
+  "version": "1.0.0",
+  "description": "Test schema for importing theme via uses",
+  "orbitals": [
+    {
+      "name": "Dashboard",
+      "uses": [
+        { "from": "@almasdar/ocean-theme", "as": "Ocean" }
+      ],
+      "theme": "Ocean.theme",
+      "entity": {
+        "name": "DashboardState",
+        "persistence": "runtime",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true,
+            "primaryKey": true
+          },
+          {
+            "name": "view",
+            "type": "string",
+            "default": "overview"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "DashboardView",
+          "category": "interaction",
+          "stateMachine": {
+            "states": [
+              { "name": "viewing", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT" }
+            ],
+            "transitions": [
+              {
+                "from": "viewing",
+                "event": "INIT",
+                "to": "viewing",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "dashboard-grid",
+                    "title": "Dashboard"
+                  }]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "Home",
+          "path": "/",
+          "traits": [{ "ref": "DashboardView" }]
+        }
+      ]
+    }
+  ]
+}

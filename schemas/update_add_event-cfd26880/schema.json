@@ -1,0 +1,245 @@
+{
+  "name": "TaskManager",
+  "version": "1.0.0",
+  "description": "A simple task manager for testing schema updates",
+  "orbitals": [
+    {
+      "name": "TaskOrbital",
+      "entity": {
+        "name": "Task",
+        "persistence": {
+          "collection": "tasks"
+        },
+        "fields": [
+          { "name": "title", "type": "string", "required": true },
+          { "name": "description", "type": "string" },
+          { "name": "status", "type": "enum", "values": ["todo", "in_progress", "done"], "default": "todo" },
+          { "name": "dueDate", "type": "date" },
+          { "name": "archived", "type": "boolean", "default": false }
+        ]
+      },
+      "traits": [
+        { "ref": "TaskInteraction" }
+      ],
+      "pages": [
+        {
+          "name": "TasksPage",
+          "path": "/tasks",
+          "traits": [{ "ref": "TaskInteraction" }]
+        }
+      ],
+      "emits": ["TASK_CREATED", "TASK_UPDATED", "TASK_DELETED", "TASK_ARCHIVED"],
+      "listens": []
+    }
+  ],
+  "traits": [
+    {
+      "name": "TaskInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          { "name": "browsing", "isInitial": true },
+          { "name": "creating" },
+          { "name": "viewing" },
+          { "name": "editing" },
+          { "name": "deleting" },
+          { "name": "archiving" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CREATE", "name": "Create Task" },
+          { "key": "VIEW", "name": "View Task" },
+          { "key": "EDIT", "name": "Edit Task" },
+          { "key": "DELETE", "name": "Delete Task" },
+          { "key": "ARCHIVE", "name": "Archive Task" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" },
+          { "key": "CONFIRM_DELETE", "name": "Confirm Delete" },
+          { "key": "CONFIRM_ARCHIVE", "name": "Confirm Archive" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Tasks",
+                "actions": [
+                  { "label": "New Task", "event": "CREATE", "variant": "primary" }
+                ]
+              }],
+              ["render-ui", "main", {
+                "type": "entity-table",
+                "entity": "Task",
+                "columns": ["title", "status", "dueDate", "archived"],
+                "itemActions": [
+                  { "label": "View", "event": "VIEW" },
+                  { "label": "Edit", "event": "EDIT" },
+                  { "label": "Archive", "event": "ARCHIVE", "variant": "secondary" },
+                  { "label": "Delete", "event": "DELETE", "variant": "destructive" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Task",
+                "title": "Create Task",
+                "fields": ["title", "description", "status", "dueDate"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              ["emit", "TASK_CREATED", "@payload"],
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              ["render-ui", "drawer", {
+                "type": "entity-detail",
+                "entity": "Task",
+                "fieldNames": ["title", "description", "status", "dueDate", "archived"],
+                "headerActions": [
+                  { "label": "Edit", "event": "EDIT" },
+                  { "label": "Archive", "event": "ARCHIVE", "variant": "secondary" },
+                  { "label": "Close", "event": "CANCEL" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              ["render-ui", "drawer", null]
+            ]
+          },
+          {
+            "from": ["browsing", "viewing"],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Task",
+                "title": "Edit Task",
+                "fields": ["title", "description", "status", "dueDate"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              ["emit", "TASK_UPDATED", "@payload"],
+              ["render-ui", "modal", null],
+              ["render-ui", "drawer", null]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "deleting",
+            "event": "DELETE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "confirmation",
+                "title": "Delete Task",
+                "message": "Are you sure you want to delete this task?",
+                "onConfirm": "CONFIRM_DELETE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CONFIRM_DELETE",
+            "effects": [
+              ["emit", "TASK_DELETED", "@payload"],
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "archiving",
+            "event": "ARCHIVE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "confirmation",
+                "title": "Archive Task",
+                "message": "Are you sure you want to archive this task? Archived tasks can be restored later.",
+                "onConfirm": "CONFIRM_ARCHIVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "archiving",
+            "to": "browsing",
+            "event": "CONFIRM_ARCHIVE",
+            "effects": [
+              ["set", "@entity.archived", true],
+              ["persist", "update", "Task", "@entity"],
+              ["emit", "TASK_ARCHIVED", "@entity"],
+              ["render-ui", "modal", null],
+              ["emit", "INIT"]
+            ]
+          },
+          {
+            "from": "archiving",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              ["render-ui", "modal", null]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

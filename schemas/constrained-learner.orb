@@ -1,0 +1,496 @@
+{
+  "name": "Constrained Learner",
+  "description": "Demonstrates explicit training constraints with cross-orbital communication",
+  "version": "1.0.0",
+  "orbitals": [
+    {
+      "name": "Experience Collector",
+      "entity": {
+        "name": "Buffer",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "experiences", "type": "array", "default": [] },
+          { "name": "bufferSize", "type": "number", "default": 0 }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ExperienceCollector",
+          "category": "interaction",
+          "linkedEntity": "Buffer",
+          "description": "Collects experiences and signals when buffer is full",
+          "emits": [
+            {
+              "event": "BUFFER_READY",
+              "scope": "external",
+              "description": "Buffer has enough experiences for training",
+              "payload": [
+                { "name": "experiences", "type": "array" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "collecting", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "EXPERIENCE", "name": "New Experience" }
+            ],
+            "transitions": [
+              {
+                "from": "collecting",
+                "to": "collecting",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Experience Collector",
+                    "subtitle": "Gathering training data"
+                  }]
+                ]
+              },
+              {
+                "from": "collecting",
+                "to": "collecting",
+                "event": "EXPERIENCE",
+                "description": "Store experience, emit when buffer full",
+                "guard": ["<", "@entity.bufferSize", 1000],
+                "effects": [
+                  ["set", "@entity.experiences", ["array/append", "@entity.experiences", {
+                    "observation": "@payload.sensors",
+                    "action": "@payload.action",
+                    "reward": "@payload.reward",
+                    "nextObservation": "@payload.nextSensors"
+                  }]],
+                  ["set", "@entity.bufferSize", ["+", "@entity.bufferSize", 1]]
+                ]
+              },
+              {
+                "from": "collecting",
+                "to": "collecting",
+                "event": "EXPERIENCE",
+                "description": "Buffer full, emit for training",
+                "guard": [">=", "@entity.bufferSize", 1000],
+                "effects": [
+                  ["emit", "BUFFER_READY", { "experiences": "@entity.experiences" }],
+                  ["set", "@entity.experiences", []],
+                  ["set", "@entity.bufferSize", 0]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "CollectorPage",
+          "path": "/collector",
+          "isInitial": true,
+          "traits": [{ "ref": "ExperienceCollector", "linkedEntity": "Buffer" }]
+        }
+      ]
+    },
+    {
+      "name": "Constrained Trainer",
+      "entity": {
+        "name": "Trainer",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "brain", "type": "object", "description": "Neural network weights" },
+          {
+            "name": "architecture",
+            "type": "object",
+            "default": ["nn/sequential",
+              ["nn/linear", 16, 64],
+              ["nn/relu"],
+              ["nn/linear", 64, 4]
+            ]
+          },
+          { "name": "maxWeightMagnitude", "type": "number", "default": 10.0 },
+          { "name": "maxGradientNorm", "type": "number", "default": 1.0 },
+          {
+            "name": "forbiddenOutputRegions",
+            "type": "array",
+            "default": [
+              { "dim": 2, "min": 10, "max": 999, "reason": "cannot fly up" }
+            ]
+          },
+          {
+            "name": "requiredInvariants",
+            "type": "array",
+            "default": [
+              [">=", "output[3]", 0],
+              ["<=", "output[3]", 1]
+            ]
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ConstrainedTrainer",
+          "category": "interaction",
+          "linkedEntity": "Trainer",
+          "description": "Trains with explicit constraints on weights and gradients",
+          "listens": [
+            {
+              "event": "BUFFER_READY",
+              "triggers": "START_TRAINING",
+              "scope": "external",
+              "description": "Starts training when buffer is ready"
+            }
+          ],
+          "emits": [
+            {
+              "event": "WEIGHTS_PROPOSED",
+              "scope": "external",
+              "description": "New weights ready for validation",
+              "payload": [
+                { "name": "weights", "type": "object" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "idle", "isInitial": true },
+              { "name": "training" }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "START_TRAINING", "name": "Start Training" },
+              { "key": "TRAINING_DONE", "name": "Training Done" }
+            ],
+            "transitions": [
+              {
+                "from": "idle",
+                "to": "idle",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Constrained Trainer",
+                    "subtitle": "Training with explicit bounds"
+                  }]
+                ]
+              },
+              {
+                "from": "idle",
+                "to": "training",
+                "event": "START_TRAINING",
+                "description": "Start constrained training",
+                "effects": [
+                  ["set", "@entity.brain", ["train/loop", "@entity.brain", "@payload.experiences", {
+                    "epochs": 10,
+                    "loss": "mse",
+                    "clipGrad": "@entity.maxGradientNorm",
+                    "clipWeights": "@entity.maxWeightMagnitude",
+                    "forbiddenOutputs": "@entity.forbiddenOutputRegions",
+                    "invariants": "@entity.requiredInvariants"
+                  }]]
+                ]
+              },
+              {
+                "from": "training",
+                "to": "idle",
+                "event": "TRAINING_DONE",
+                "description": "Training complete, propose weights",
+                "effects": [
+                  ["emit", "WEIGHTS_PROPOSED", { "weights": "@entity.brain" }]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "TrainerPage",
+          "path": "/trainer",
+          "traits": [{ "ref": "ConstrainedTrainer", "linkedEntity": "Trainer" }]
+        }
+      ]
+    },
+    {
+      "name": "Weight Validator",
+      "entity": {
+        "name": "Validator",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "currentLoss", "type": "number", "default": 999.0 },
+          { "name": "validationData", "type": "array", "default": [] },
+          { "name": "maxWeightMagnitude", "type": "number", "default": 10.0 },
+          {
+            "name": "requiredInvariants",
+            "type": "array",
+            "default": [
+              [">=", "output[3]", 0],
+              ["<=", "output[3]", 1]
+            ]
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "WeightValidator",
+          "category": "interaction",
+          "linkedEntity": "Validator",
+          "description": "Validates proposed weights against constraints",
+          "listens": [
+            {
+              "event": "WEIGHTS_PROPOSED",
+              "triggers": "VALIDATE_WEIGHTS",
+              "scope": "external",
+              "description": "Validates proposed weights"
+            }
+          ],
+          "emits": [
+            {
+              "event": "WEIGHTS_ACCEPTED",
+              "scope": "external",
+              "description": "Weights passed validation",
+              "payload": [
+                { "name": "weights", "type": "object" },
+                { "name": "loss", "type": "number" }
+              ]
+            },
+            {
+              "event": "WEIGHTS_REJECTED",
+              "scope": "external",
+              "description": "Weights failed validation",
+              "payload": [
+                { "name": "reason", "type": "string" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "ready", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "VALIDATE_WEIGHTS", "name": "Validate Weights" }
+            ],
+            "transitions": [
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Weight Validator",
+                    "subtitle": "Constraint verification"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "VALIDATE_WEIGHTS",
+                "description": "Weights pass all constraints",
+                "guard": ["and",
+                  ["<=", ["weights/maxMagnitude", "@payload.weights"], "@entity.maxWeightMagnitude"],
+                  ["model/satisfiesInvariants", "@payload.weights", "@entity.requiredInvariants"],
+                  ["<", ["evaluate", "@payload.weights", "@entity.validationData"], ["*", "@entity.currentLoss", 1.1]]
+                ],
+                "effects": [
+                  ["set", "@entity.currentLoss", ["evaluate", "@payload.weights", "@entity.validationData"]],
+                  ["emit", "WEIGHTS_ACCEPTED", {
+                    "weights": "@payload.weights",
+                    "loss": "@entity.currentLoss"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "VALIDATE_WEIGHTS",
+                "description": "Weights violate magnitude constraint",
+                "guard": [">", ["weights/maxMagnitude", "@payload.weights"], "@entity.maxWeightMagnitude"],
+                "effects": [
+                  ["emit", "WEIGHTS_REJECTED", {
+                    "reason": "weight magnitude exceeded",
+                    "maxMagnitude": ["weights/maxMagnitude", "@payload.weights"],
+                    "limit": "@entity.maxWeightMagnitude"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "VALIDATE_WEIGHTS",
+                "description": "Weights violate invariants",
+                "guard": ["not", ["model/satisfiesInvariants", "@payload.weights", "@entity.requiredInvariants"]],
+                "effects": [
+                  ["emit", "WEIGHTS_REJECTED", { "reason": "invariant violation" }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "VALIDATE_WEIGHTS",
+                "description": "Weights cause validation regression",
+                "guard": [">=", ["evaluate", "@payload.weights", "@entity.validationData"], ["*", "@entity.currentLoss", 1.1]],
+                "effects": [
+                  ["emit", "WEIGHTS_REJECTED", {
+                    "reason": "validation regression",
+                    "oldLoss": "@entity.currentLoss",
+                    "newLoss": ["evaluate", "@payload.weights", "@entity.validationData"]
+                  }]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "ValidatorPage",
+          "path": "/validator",
+          "traits": [{ "ref": "WeightValidator", "linkedEntity": "Validator" }]
+        }
+      ]
+    },
+    {
+      "name": "Model Deployer",
+      "entity": {
+        "name": "Deployer",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "deployedWeights", "type": "object" },
+          { "name": "trainingEpisode", "type": "number", "default": 0 },
+          { "name": "currentLoss", "type": "number", "default": 999.0 }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ModelDeployer",
+          "category": "interaction",
+          "linkedEntity": "Deployer",
+          "description": "Deploys validated weights",
+          "listens": [
+            {
+              "event": "WEIGHTS_ACCEPTED",
+              "triggers": "DEPLOY_WEIGHTS",
+              "scope": "external",
+              "description": "Deploys accepted weights"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "ready", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "DEPLOY_WEIGHTS", "name": "Deploy Weights" }
+            ],
+            "transitions": [
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Model Deployer",
+                    "subtitle": "Weight deployment"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "DEPLOY_WEIGHTS",
+                "description": "Deploy validated weights",
+                "effects": [
+                  ["set", "@entity.deployedWeights", "@payload.weights"],
+                  ["set", "@entity.currentLoss", "@payload.loss"],
+                  ["set", "@entity.trainingEpisode", ["+", "@entity.trainingEpisode", 1]]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "DeployerPage",
+          "path": "/deployer",
+          "traits": [{ "ref": "ModelDeployer", "linkedEntity": "Deployer" }]
+        }
+      ]
+    },
+    {
+      "name": "Rejection Handler",
+      "entity": {
+        "name": "Handler",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "rejectionCount", "type": "number", "default": 0 },
+          { "name": "lastRejection", "type": "object" }
+        ]
+      },
+      "traits": [
+        {
+          "name": "RejectionHandler",
+          "category": "interaction",
+          "linkedEntity": "Handler",
+          "description": "Handles weight rejections",
+          "listens": [
+            {
+              "event": "WEIGHTS_REJECTED",
+              "triggers": "HANDLE_REJECTION",
+              "scope": "external",
+              "description": "Handles rejected weights"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "ready", "isInitial": true }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "HANDLE_REJECTION", "name": "Handle Rejection" }
+            ],
+            "transitions": [
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Rejection Handler",
+                    "subtitle": "Training feedback"
+                  }]
+                ]
+              },
+              {
+                "from": "ready",
+                "to": "ready",
+                "event": "HANDLE_REJECTION",
+                "description": "Log rejection and increment counter",
+                "effects": [
+                  ["set", "@entity.lastRejection", "@payload"],
+                  ["set", "@entity.rejectionCount", ["+", "@entity.rejectionCount", 1]]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "HandlerPage",
+          "path": "/handler",
+          "traits": [{ "ref": "RejectionHandler", "linkedEntity": "Handler" }]
+        }
+      ]
+    }
+  ]
+}

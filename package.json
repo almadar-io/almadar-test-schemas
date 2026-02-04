@@ -1,0 +1,12 @@
+{
+  "name": "@almadar/test-schemas",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    "./schemas/*": "./schemas/*.orb",
+    "./training-data/*": "./training-data/*"
+  },
+  "scripts": {
+    "validate": "orbital validate ./schemas/*.orb"
+  }
+}

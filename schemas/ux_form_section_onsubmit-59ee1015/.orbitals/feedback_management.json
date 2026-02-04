@@ -1,0 +1,538 @@
+{
+  "name": "Feedback Management",
+  "entity": {
+    "name": "Feedback",
+    "collection": "feedback",
+    "fields": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "rating",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "pending",
+          "reviewed",
+          "resolved"
+        ],
+        "default": "pending"
+      },
+      {
+        "name": "createdAt",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "updatedAt",
+        "type": "date"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "FeedbackForm",
+      "category": "form",
+      "linkedEntity": "Feedback",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "Idle",
+            "isInitial": true
+          },
+          {
+            "name": "Submitting"
+          },
+          {
+            "name": "Success"
+          },
+          {
+            "name": "Error"
+          }
+        ],
+        "events": [
+          {
+            "key": "SUBMIT",
+            "name": "Submit"
+          },
+          {
+            "key": "SUCCESS",
+            "name": "Success"
+          },
+          {
+            "key": "ERROR",
+            "name": "Error"
+          },
+          {
+            "key": "RESET",
+            "name": "Reset"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "Idle",
+            "to": "Submitting",
+            "event": "SUBMIT",
+            "effects": [
+              [
+                "validate",
+                "Feedback",
+                "@form"
+              ],
+              [
+                "persist",
+                "create",
+                "Feedback",
+                "@form"
+              ]
+            ]
+          },
+          {
+            "from": "Submitting",
+            "to": "Success",
+            "event": "SUCCESS",
+            "effects": [
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Thank you for your feedback!",
+                  "variant": "success"
+                }
+              ],
+              [
+                "clear-form",
+                "Feedback"
+              ]
+            ]
+          },
+          {
+            "from": "Submitting",
+            "to": "Error",
+            "event": "ERROR",
+            "effects": [
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Failed to submit feedback. Please try again.",
+                  "variant": "error"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "Success",
+            "to": "Idle",
+            "event": "RESET",
+            "effects": []
+          },
+          {
+            "from": "Error",
+            "to": "Idle",
+            "event": "RESET",
+            "effects": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeedbackManagement",
+      "category": "interaction",
+      "linkedEntity": "Feedback",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "updating"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "VIEW",
+            "name": "View"
+          },
+          {
+            "key": "UPDATE_STATUS",
+            "name": "Update Status"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Feedback Management",
+                  "subtitle": "Review and manage customer feedback"
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "pending",
+                        "reviewed",
+                        "resolved"
+                      ]
+                    },
+                    {
+                      "field": "rating",
+                      "filterType": "number-range",
+                      "label": "Rating",
+                      "min": 1,
+                      "max": 5
+                    },
+                    {
+                      "field": "createdAt",
+                      "filterType": "date-range",
+                      "label": "Date"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Feedback",
+                  "columns": [
+                    "name",
+                    "email",
+                    "rating",
+                    "status",
+                    "createdAt"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Mark Reviewed",
+                      "event": "UPDATE_STATUS",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Mark Resolved",
+                      "event": "UPDATE_STATUS",
+                      "placement": "menu"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Feedback",
+                  "fieldNames": [
+                    "name",
+                    "email",
+                    "message",
+                    "rating",
+                    "status",
+                    "createdAt"
+                  ],
+                  "actions": [
+                    {
+                      "label": "Update Status",
+                      "event": "UPDATE_STATUS",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CLOSE",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "updating",
+            "event": "UPDATE_STATUS",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Feedback",
+                  "title": "Update Status",
+                  "fields": [
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "pending",
+                        "reviewed",
+                        "resolved"
+                      ]
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "label": "Save",
+                      "event": "SAVE",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "updating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Feedback",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Feedback status updated successfully",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "updating",
+            "to": "viewing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Feedback",
+                  "fieldNames": [
+                    "name",
+                    "email",
+                    "message",
+                    "rating",
+                    "status",
+                    "createdAt"
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "FeedbackFormPage",
+      "path": "/feedback",
+      "viewType": "form",
+      "primaryEntity": "Feedback",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "FeedbackForm"
+        }
+      ],
+      "stateMachine": {
+        "states": [
+          {
+            "name": "ready",
+            "isInitial": true
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Share Your Feedback",
+                  "subtitle": "We value your opinion and suggestions"
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "form-section",
+                  "entity": "Feedback",
+                  "fields": [
+                    {
+                      "field": "name",
+                      "label": "Your Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "email",
+                      "label": "Email Address",
+                      "inputType": "email",
+                      "required": true
+                    },
+                    {
+                      "field": "rating",
+                      "label": "Rating (1-5)",
+                      "inputType": "number",
+                      "required": true,
+                      "min": 1,
+                      "max": 5
+                    },
+                    {
+                      "field": "message",
+                      "label": "Your Message",
+                      "inputType": "textarea",
+                      "required": true,
+                      "placeholder": "Please share your thoughts, suggestions, or concerns..."
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "label": "Submit Feedback",
+                      "event": "SUBMIT",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Clear Form",
+                      "event": "RESET",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeedbackManagementPage",
+      "path": "/admin/feedback",
+      "viewType": "list",
+      "primaryEntity": "Feedback",
+      "traits": [
+        {
+          "ref": "FeedbackManagement"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "FEEDBACK_SUBMITTED",
+    "FEEDBACK_STATUS_UPDATED"
+  ],
+  "listens": []
+}

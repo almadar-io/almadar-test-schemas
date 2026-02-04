@@ -1,0 +1,159 @@
+{
+  "name": "SystemControl",
+  "version": "1.0.0",
+  "description": "AMA OS POC - System control actions",
+
+  "orbitals": [{
+    "name": "System Controller",
+    "entity": {
+      "name": "Controls",
+      "persistence": "runtime",
+      "fields": [
+        { "name": "id", "type": "string", "default": "controls" },
+        { "name": "volume", "type": "number", "default": 50 },
+        { "name": "brightness", "type": "number", "default": 50 },
+        { "name": "clipboard", "type": "string", "default": "" },
+        { "name": "lastNotification", "type": "string" }
+      ]
+    },
+    "traits": [{
+      "name": "SystemActions",
+      "category": "interaction",
+      "linkedEntity": "Controls",
+      "stateMachine": {
+        "states": [
+          { "name": "ready", "isInitial": true }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "SET_VOLUME", "name": "Set Volume" },
+          { "key": "SET_BRIGHTNESS", "name": "Set Brightness" },
+          { "key": "SEND_NOTIFICATION", "name": "Send Notification" },
+          { "key": "COPY_TO_CLIPBOARD", "name": "Copy to Clipboard" },
+          { "key": "READ_CLIPBOARD", "name": "Read Clipboard" },
+          { "key": "OPEN_URL", "name": "Open URL" },
+          { "key": "SPEAK", "name": "Text to Speech" },
+          { "key": "TAKE_SCREENSHOT", "name": "Take Screenshot" },
+          { "key": "PLAY_SOUND", "name": "Play Sound" }
+        ],
+        "transitions": [
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "INIT",
+            "effects": [
+              ["set", "@entity.volume", ["oal/volume-get"]],
+              ["set", "@entity.brightness", ["oal/brightness-get"]],
+              ["render-ui", "main", {
+                "type": "form",
+                "entity": "Controls",
+                "mode": "edit",
+                "fields": [
+                  { "name": "volume", "label": "Volume" },
+                  { "name": "brightness", "label": "Brightness" }
+                ]
+              }],
+              ["render-ui", "sidebar", {
+                "type": "page-header",
+                "title": "System Actions",
+                "actions": [
+                  { "event": "SEND_NOTIFICATION", "label": "Send Test Notification" },
+                  { "event": "SPEAK", "label": "Speak Greeting" },
+                  { "event": "TAKE_SCREENSHOT", "label": "Take Screenshot" },
+                  { "event": "PLAY_SOUND", "label": "Play Alert Sound" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "SET_VOLUME",
+            "effects": [
+              ["oal/volume-set", "@payload.volume"],
+              ["set", "@entity.volume", "@payload.volume"],
+              ["oal/notify", "Volume Changed", ["str/concat", "Volume set to ", "@payload.volume", "%"]]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "SET_BRIGHTNESS",
+            "effects": [
+              ["oal/brightness-set", "@payload.brightness"],
+              ["set", "@entity.brightness", "@payload.brightness"],
+              ["oal/notify", "Brightness Changed", ["str/concat", "Brightness set to ", "@payload.brightness", "%"]]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "SEND_NOTIFICATION",
+            "effects": [
+              ["oal/notify", "AMA OS Test", "This is a test notification from AMA OS!", "dialog-information"],
+              ["set", "@entity.lastNotification", "Test notification sent"]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "COPY_TO_CLIPBOARD",
+            "effects": [
+              ["oal/clipboard-write", "@payload.text"],
+              ["oal/notify", "Copied", "Text copied to clipboard"]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "READ_CLIPBOARD",
+            "effects": [
+              ["set", "@entity.clipboard", ["oal/clipboard-read"]]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "OPEN_URL",
+            "effects": [
+              ["oal/open-url", "@payload.url"]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "SPEAK",
+            "effects": [
+              ["oal/speak", "Hello! I am AMA OS, your intelligent operating system."]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "TAKE_SCREENSHOT",
+            "effects": [
+              ["oal/screenshot", "/tmp/ama-screenshot.png"],
+              ["oal/notify", "Screenshot Saved", "Screenshot saved to /tmp/ama-screenshot.png"],
+              ["oal/open-file", "/tmp/ama-screenshot.png"]
+            ]
+          },
+          {
+            "from": "ready",
+            "to": "ready",
+            "event": "PLAY_SOUND",
+            "effects": [
+              ["oal/play-sound", "/usr/share/sounds/freedesktop/stereo/complete.oga"],
+              ["oal/notify", "Sound Played", "Alert sound played"]
+            ]
+          }
+        ]
+      }
+    }],
+    "pages": [{
+      "name": "ControlPage",
+      "path": "/controls",
+      "slots": ["main", "sidebar"],
+      "traits": [{ "ref": "SystemActions" }]
+    }]
+  }]
+}

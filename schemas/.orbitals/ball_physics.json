@@ -1,0 +1,395 @@
+{
+  "name": "Ball Physics",
+  "entity": {
+    "name": "Ball",
+    "runtime": true,
+    "fields": [
+      {
+        "name": "x",
+        "type": "number",
+        "required": true,
+        "default": 400
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "required": true,
+        "default": 300
+      },
+      {
+        "name": "vx",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "vy",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "required": true,
+        "default": 20
+      },
+      {
+        "name": "state",
+        "type": "enum",
+        "values": [
+          "idle",
+          "moving",
+          "bouncing"
+        ],
+        "default": "idle"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "Physics2D",
+      "category": "physics",
+      "linkedEntity": "Ball",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "idle",
+            "isInitial": true
+          },
+          {
+            "name": "moving"
+          },
+          {
+            "name": "bouncing"
+          },
+          {
+            "name": "stopped"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "START_MOTION",
+            "name": "Start Motion"
+          },
+          {
+            "key": "BOUNCE",
+            "name": "Bounce"
+          },
+          {
+            "key": "STOP",
+            "name": "Stop"
+          },
+          {
+            "key": "RESET",
+            "name": "Reset"
+          },
+          {
+            "key": "UPDATE_PHYSICS",
+            "name": "Update Physics"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "idle",
+            "to": "idle",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "game-canvas",
+                  "width": 800,
+                  "height": 600
+                }
+              ],
+              [
+                "render-ui",
+                "hud-top",
+                {
+                  "type": "game-controls",
+                  "actions": [
+                    {
+                      "label": "Start",
+                      "event": "START_MOTION",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Reset",
+                      "event": "RESET",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "hud-bottom",
+                {
+                  "type": "stats",
+                  "entity": "Ball",
+                  "metrics": [
+                    {
+                      "field": "x",
+                      "label": "X Position",
+                      "format": "number"
+                    },
+                    {
+                      "field": "y",
+                      "label": "Y Position",
+                      "format": "number"
+                    },
+                    {
+                      "field": "vx",
+                      "label": "X Velocity",
+                      "format": "number"
+                    },
+                    {
+                      "field": "vy",
+                      "label": "Y Velocity",
+                      "format": "number"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "idle",
+            "to": "moving",
+            "event": "START_MOTION",
+            "effects": [
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "vx": 5,
+                  "vy": -3,
+                  "state": "moving"
+                }
+              ],
+              [
+                "start-physics-loop"
+              ]
+            ]
+          },
+          {
+            "from": "moving",
+            "to": "moving",
+            "event": "UPDATE_PHYSICS",
+            "effects": [
+              [
+                "apply-gravity",
+                "Ball",
+                0.2
+              ],
+              [
+                "update-position",
+                "Ball"
+              ],
+              [
+                "check-boundaries",
+                "Ball",
+                {
+                  "width": 800,
+                  "height": 600
+                }
+              ]
+            ]
+          },
+          {
+            "from": "moving",
+            "to": "bouncing",
+            "event": "BOUNCE",
+            "effects": [
+              [
+                "reverse-velocity",
+                "Ball"
+              ],
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "state": "bouncing"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Ball bounced!",
+                  "duration": 1000
+                }
+              ]
+            ]
+          },
+          {
+            "from": "bouncing",
+            "to": "moving",
+            "event": "UPDATE_PHYSICS",
+            "effects": [
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "state": "moving"
+                }
+              ],
+              [
+                "apply-gravity",
+                "Ball",
+                0.2
+              ],
+              [
+                "update-position",
+                "Ball"
+              ]
+            ]
+          },
+          {
+            "from": "moving",
+            "to": "stopped",
+            "event": "STOP",
+            "effects": [
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "vx": 0,
+                  "vy": 0,
+                  "state": "idle"
+                }
+              ],
+              [
+                "stop-physics-loop"
+              ]
+            ]
+          },
+          {
+            "from": "bouncing",
+            "to": "stopped",
+            "event": "STOP",
+            "effects": [
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "vx": 0,
+                  "vy": 0,
+                  "state": "idle"
+                }
+              ],
+              [
+                "stop-physics-loop"
+              ]
+            ]
+          },
+          {
+            "from": "stopped",
+            "to": "idle",
+            "event": "RESET",
+            "effects": [
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "x": 400,
+                  "y": 300,
+                  "vx": 0,
+                  "vy": 0,
+                  "state": "idle"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "moving",
+            "to": "idle",
+            "event": "RESET",
+            "effects": [
+              [
+                "stop-physics-loop"
+              ],
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "x": 400,
+                  "y": 300,
+                  "vx": 0,
+                  "vy": 0,
+                  "state": "idle"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "bouncing",
+            "to": "idle",
+            "event": "RESET",
+            "effects": [
+              [
+                "stop-physics-loop"
+              ],
+              [
+                "update-entity",
+                "Ball",
+                {
+                  "x": 400,
+                  "y": 300,
+                  "vx": 0,
+                  "vy": 0,
+                  "state": "idle"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "BallPhysicsPage",
+      "path": "/ball-physics",
+      "viewType": "game",
+      "primaryEntity": "Ball",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "Physics2D"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "BALL_BOUNCED",
+    "BALL_STOPPED",
+    "PHYSICS_UPDATED"
+  ],
+  "listens": [
+    "BOUNDARY_HIT",
+    "GRAVITY_CHANGED"
+  ]
+}

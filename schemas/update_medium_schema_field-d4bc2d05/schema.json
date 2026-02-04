@@ -1,0 +1,920 @@
+{
+  "name": "ProjectManagementSuite",
+  "version": "2.1.0",
+  "description": "Enterprise project management application with tasks, sprints, teams, and reporting",
+  "orbitals": [
+    {
+      "name": "TaskOrbital",
+      "entity": {
+        "name": "Task",
+        "persistence": {
+          "collection": "tasks"
+        },
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "in_review",
+              "done"
+            ],
+            "default": "backlog"
+          },
+          {
+            "name": "priority",
+            "type": "enum",
+            "values": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "default": "medium"
+          },
+          {
+            "name": "type",
+            "type": "enum",
+            "values": [
+              "feature",
+              "bug",
+              "chore",
+              "spike"
+            ],
+            "default": "feature"
+          },
+          {
+            "name": "storyPoints",
+            "type": "number"
+          },
+          {
+            "name": "projectId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sprintId",
+            "type": "string"
+          },
+          {
+            "name": "assigneeId",
+            "type": "string"
+          },
+          {
+            "name": "reporterId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "labelIds",
+            "type": "array"
+          },
+          {
+            "name": "dueDate",
+            "type": "date"
+          },
+          {
+            "name": "estimatedHours",
+            "type": "number"
+          },
+          {
+            "name": "loggedHours",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "blockedBy",
+            "type": "array"
+          },
+          {
+            "name": "blocks",
+            "type": "array"
+          },
+          {
+            "name": "attachments",
+            "type": "array"
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "updatedAt",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "ref": "TaskInteraction"
+        },
+        {
+          "ref": "TaskWorkflow"
+        }
+      ],
+      "pages": [
+        {
+          "name": "TaskBoardPage",
+          "path": "/projects/:projectId/board",
+          "traits": [
+            {
+              "ref": "TaskInteraction"
+            }
+          ]
+        },
+        {
+          "name": "TaskListPage",
+          "path": "/projects/:projectId/tasks",
+          "traits": [
+            {
+              "ref": "TaskInteraction"
+            }
+          ]
+        },
+        {
+          "name": "TaskDetailPage",
+          "path": "/tasks/:id",
+          "traits": [
+            {
+              "ref": "TaskInteraction"
+            }
+          ]
+        }
+      ],
+      "emits": [
+        "TASK_CREATED",
+        "TASK_UPDATED",
+        "TASK_ASSIGNED",
+        "TASK_COMPLETED",
+        "TASK_BLOCKED"
+      ],
+      "listens": []
+    },
+    {
+      "name": "UserOrbital",
+      "entity": {
+        "name": "User",
+        "persistence": {
+          "collection": "users"
+        },
+        "fields": [
+          {
+            "name": "email",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "displayName",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "avatarUrl",
+            "type": "string"
+          },
+          {
+            "name": "role",
+            "type": "enum",
+            "values": [
+              "admin",
+              "manager",
+              "developer",
+              "viewer"
+            ],
+            "default": "developer"
+          },
+          {
+            "name": "teamIds",
+            "type": "array"
+          },
+          {
+            "name": "skills",
+            "type": "array"
+          },
+          {
+            "name": "capacity",
+            "type": "number",
+            "default": 40
+          },
+          {
+            "name": "timezone",
+            "type": "string",
+            "default": "UTC"
+          },
+          {
+            "name": "notificationPrefs",
+            "type": "object"
+          },
+          {
+            "name": "lastActiveAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "ref": "UserInteraction"
+        },
+        {
+          "ref": "UserProfile"
+        }
+      ],
+      "pages": [
+        {
+          "name": "TeamPage",
+          "path": "/team",
+          "traits": [
+            {
+              "ref": "UserInteraction"
+            }
+          ]
+        },
+        {
+          "name": "ProfilePage",
+          "path": "/profile/:id",
+          "traits": [
+            {
+              "ref": "UserProfile"
+            }
+          ]
+        }
+      ],
+      "emits": [
+        "USER_UPDATED",
+        "USER_ROLE_CHANGED"
+      ],
+      "listens": []
+    }
+  ],
+  "traits": [
+    {
+      "name": "TaskInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "assigning"
+          },
+          {
+            "name": "deleting"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Task"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Task"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Task"
+          },
+          {
+            "key": "ASSIGN",
+            "name": "Assign Task"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete Task"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          },
+          {
+            "key": "CONFIRM",
+            "name": "Confirm"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Tasks",
+                  "actions": [
+                    {
+                      "label": "New Task",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Task",
+                  "columns": [
+                    "title",
+                    "status",
+                    "priority",
+                    "type",
+                    "assigneeId",
+                    "dueDate"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Assign",
+                      "event": "ASSIGN"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "variant": "destructive"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Task",
+                  "title": "Create Task",
+                  "fields": [
+                    "title",
+                    "description",
+                    "type",
+                    "priority",
+                    "storyPoints",
+                    "dueDate",
+                    "estimatedHours"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "TASK_CREATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Task",
+                  "fieldNames": [
+                    "title",
+                    "description",
+                    "status",
+                    "priority",
+                    "type",
+                    "storyPoints",
+                    "assigneeId",
+                    "dueDate",
+                    "estimatedHours",
+                    "loggedHours"
+                  ],
+                  "headerActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Assign",
+                      "event": "ASSIGN"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CANCEL"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskWorkflow",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "backlog",
+            "isInitial": true
+          },
+          {
+            "name": "todo"
+          },
+          {
+            "name": "in_progress"
+          },
+          {
+            "name": "in_review"
+          },
+          {
+            "name": "done"
+          }
+        ],
+        "events": [
+          {
+            "key": "MOVE_TO_TODO",
+            "name": "Move to Todo"
+          },
+          {
+            "key": "START_WORK",
+            "name": "Start Work"
+          },
+          {
+            "key": "SUBMIT_FOR_REVIEW",
+            "name": "Submit for Review"
+          },
+          {
+            "key": "APPROVE",
+            "name": "Approve"
+          },
+          {
+            "key": "REQUEST_CHANGES",
+            "name": "Request Changes"
+          },
+          {
+            "key": "REOPEN",
+            "name": "Reopen"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "backlog",
+            "to": "todo",
+            "event": "MOVE_TO_TODO",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "todo"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "todo",
+            "to": "in_progress",
+            "event": "START_WORK",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "in_progress"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "in_progress",
+            "to": "in_review",
+            "event": "SUBMIT_FOR_REVIEW",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "in_review"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "in_review",
+            "to": "done",
+            "event": "APPROVE",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "done"
+              ],
+              [
+                "emit",
+                "TASK_COMPLETED",
+                "@entity"
+              ]
+            ]
+          },
+          {
+            "from": "in_review",
+            "to": "in_progress",
+            "event": "REQUEST_CHANGES",
+            "effects": [
+              [
+                "set",
+                "@entity.status",
+                "in_progress"
+              ],
+              [
+                "emit",
+                "TASK_UPDATED",
+                "@entity"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "VIEW",
+            "name": "View User"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit User"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Team Members"
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-cards",
+                  "entity": "User",
+                  "fieldNames": [
+                    "displayName",
+                    "email",
+                    "role"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "User",
+                  "fieldNames": [
+                    "displayName",
+                    "email",
+                    "role",
+                    "skills",
+                    "capacity",
+                    "timezone"
+                  ],
+                  "headerActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CANCEL"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": [
+              "browsing",
+              "viewing"
+            ],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "User",
+                  "title": "Edit User",
+                  "fields": [
+                    "displayName",
+                    "role",
+                    "skills",
+                    "capacity",
+                    "timezone"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "USER_UPDATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserProfile",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "viewing",
+            "isInitial": true
+          },
+          {
+            "name": "editing"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Profile"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "viewing",
+            "to": "viewing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-detail",
+                  "entity": "User",
+                  "fieldNames": [
+                    "displayName",
+                    "email",
+                    "avatarUrl",
+                    "role",
+                    "skills",
+                    "capacity",
+                    "timezone",
+                    "notificationPrefs"
+                  ],
+                  "headerActions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "User",
+                  "title": "Edit Profile",
+                  "fields": [
+                    "displayName",
+                    "avatarUrl",
+                    "skills",
+                    "capacity",
+                    "timezone",
+                    "notificationPrefs"
+                  ],
+                  "onSubmit": "SAVE",
+                  "onCancel": "CANCEL"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "viewing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "emit",
+                "USER_UPDATED",
+                "@payload"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "viewing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

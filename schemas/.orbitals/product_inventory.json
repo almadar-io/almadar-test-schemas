@@ -1,0 +1,818 @@
+{
+  "name": "Product Inventory",
+  "entity": {
+    "name": "Product",
+    "collection": "products",
+    "fields": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "price",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "quantity",
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "in_stock",
+          "low_stock",
+          "out_of_stock",
+          "discontinued"
+        ],
+        "required": true,
+        "default": "in_stock"
+      },
+      {
+        "name": "sku",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "supplier",
+        "type": "string"
+      },
+      {
+        "name": "reorderLevel",
+        "type": "number",
+        "default": 10
+      },
+      {
+        "name": "lastRestocked",
+        "type": "date"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "InventoryStatus",
+      "category": "business",
+      "linkedEntity": "Product",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "monitoring",
+            "isInitial": true
+          },
+          {
+            "name": "alerting"
+          },
+          {
+            "name": "restocking"
+          }
+        ],
+        "events": [
+          {
+            "key": "CHECK_LEVELS",
+            "name": "Check Stock Levels"
+          },
+          {
+            "key": "LOW_STOCK_ALERT",
+            "name": "Low Stock Alert"
+          },
+          {
+            "key": "RESTOCK",
+            "name": "Restock"
+          },
+          {
+            "key": "STOCK_UPDATED",
+            "name": "Stock Updated"
+          },
+          {
+            "key": "RESET_MONITORING",
+            "name": "Reset Monitoring"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "monitoring",
+            "to": "alerting",
+            "event": "LOW_STOCK_ALERT",
+            "effects": [
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "alert",
+                  "variant": "warning",
+                  "message": "Low stock alert for product"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "alerting",
+            "to": "restocking",
+            "event": "RESTOCK",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Product",
+                  "fields": [
+                    {
+                      "field": "quantity",
+                      "label": "New Quantity",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "lastRestocked",
+                      "label": "Restock Date",
+                      "inputType": "date"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "restocking",
+            "to": "monitoring",
+            "event": "STOCK_UPDATED",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Product",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "alert",
+                  "variant": "success",
+                  "message": "Stock updated successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "alerting",
+            "to": "monitoring",
+            "event": "RESET_MONITORING",
+            "effects": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "EntityManagement",
+      "category": "interaction",
+      "linkedEntity": "Product",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "deleting"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Product"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Product"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Product"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete Product"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel"
+          },
+          {
+            "key": "CONFIRM_DELETE",
+            "name": "Confirm Delete"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Product Inventory",
+                  "actions": [
+                    {
+                      "label": "Add Product",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "search-bar",
+                  "placeholder": "Search products...",
+                  "entity": "Product"
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "in_stock",
+                        "low_stock",
+                        "out_of_stock",
+                        "discontinued"
+                      ]
+                    },
+                    {
+                      "field": "category",
+                      "filterType": "select",
+                      "label": "Category",
+                      "options": []
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Product",
+                  "columns": [
+                    "name",
+                    "sku",
+                    "price",
+                    "quantity",
+                    "status",
+                    "category"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Restock",
+                      "event": "RESTOCK",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Product",
+                  "fields": [
+                    {
+                      "field": "name",
+                      "label": "Product Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "sku",
+                      "label": "SKU",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "price",
+                      "label": "Price",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "quantity",
+                      "label": "Initial Quantity",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "category",
+                      "label": "Category",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "supplier",
+                      "label": "Supplier",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "reorderLevel",
+                      "label": "Reorder Level",
+                      "inputType": "number"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Create Product",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Product",
+                  "fieldNames": [
+                    "name",
+                    "sku",
+                    "description",
+                    "price",
+                    "quantity",
+                    "status",
+                    "category",
+                    "supplier",
+                    "reorderLevel",
+                    "lastRestocked"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "page-header",
+                  "title": "Product Details",
+                  "actions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Restock",
+                      "event": "RESTOCK",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Product",
+                  "fields": [
+                    {
+                      "field": "name",
+                      "label": "Product Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "price",
+                      "label": "Price",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "category",
+                      "label": "Category",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "supplier",
+                      "label": "Supplier",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "reorderLevel",
+                      "label": "Reorder Level",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "in_stock",
+                        "low_stock",
+                        "out_of_stock",
+                        "discontinued"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Product",
+                  "fields": [
+                    {
+                      "field": "name",
+                      "label": "Product Name",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "price",
+                      "label": "Price",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "category",
+                      "label": "Category",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "supplier",
+                      "label": "Supplier",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "reorderLevel",
+                      "label": "Reorder Level",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "in_stock",
+                        "low_stock",
+                        "out_of_stock",
+                        "discontinued"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "deleting",
+            "event": "DELETE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation-dialog",
+                  "title": "Delete Product",
+                  "message": "Are you sure you want to delete this product? This action cannot be undone.",
+                  "confirmLabel": "Delete",
+                  "cancelLabel": "Cancel",
+                  "confirmEvent": "CONFIRM_DELETE",
+                  "cancelEvent": "CANCEL",
+                  "variant": "danger"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "create",
+                "Product",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "alert",
+                  "variant": "success",
+                  "message": "Product created successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Product",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "alert",
+                  "variant": "success",
+                  "message": "Product updated successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CONFIRM_DELETE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "delete",
+                "Product",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "alert",
+                  "variant": "success",
+                  "message": "Product deleted successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "ProductInventoryPage",
+      "path": "/inventory",
+      "viewType": "list",
+      "primaryEntity": "Product",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "EntityManagement"
+        },
+        {
+          "ref": "InventoryStatus"
+        }
+      ]
+    },
+    {
+      "name": "LowStockDashboard",
+      "path": "/inventory/alerts",
+      "viewType": "dashboard",
+      "primaryEntity": "Product",
+      "traits": [
+        {
+          "ref": "InventoryStatus"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "PRODUCT_CREATED",
+    "PRODUCT_UPDATED",
+    "PRODUCT_DELETED",
+    "LOW_STOCK_DETECTED",
+    "STOCK_RESTOCKED"
+  ],
+  "listens": [
+    "INVENTORY_CHECK_REQUESTED",
+    "BULK_UPDATE_PRODUCTS"
+  ]
+}

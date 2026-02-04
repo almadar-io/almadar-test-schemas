@@ -1,0 +1,4665 @@
+{
+  "name": "User Onboarding & Trust Foundation",
+  "description": "Generated with orbital composition",
+  "version": "1.0.0",
+  "_operational": {
+    "validationMeta": {
+      "warningCount": 0,
+      "errorCount": 0,
+      "validatedAt": 1769169615784
+    }
+  },
+  "_metadata": {
+    "version": 1,
+    "createdAt": 1769016006836,
+    "source": "builder-agent",
+    "updatedAt": 1769215867522
+  },
+  "_historyMeta": {
+    "changeSetCount": 3,
+    "latestChangeSetId": "cs_1769141602170_1uv1m4q",
+    "snapshotCount": 2,
+    "latestSnapshotId": "snapshot_1769054428561"
+  },
+  "orbitals": [
+    {
+      "name": "User Onboarding & Trust Foundation",
+      "entity": {
+        "name": "User",
+        "collection": "users",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true,
+            "primaryKey": true
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "required": true,
+            "unique": true
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "pending",
+              "active",
+              "suspended"
+            ],
+            "default": "pending"
+          },
+          {
+            "name": "assessmentId",
+            "type": "string"
+          },
+          {
+            "name": "trustScoreId",
+            "type": "string"
+          },
+          {
+            "name": "primaryCategory",
+            "type": "string"
+          },
+          {
+            "name": "connectionSlots",
+            "type": "number",
+            "default": 10
+          },
+          {
+            "name": "usedSlots",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "isBetaUser",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "inviteCode",
+            "type": "string"
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp",
+            "default": "@now"
+          },
+          {
+            "name": "lastActiveAt",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "UserManagement",
+          "category": "interaction",
+          "linkedEntity": "User",
+          "emits": [
+            {
+              "event": "USER_REGISTERED",
+              "description": "Emitted when a new user completes registration",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the registered user"
+                },
+                {
+                  "name": "email",
+                  "type": "string",
+                  "required": true,
+                  "description": "Email of the registered user"
+                }
+              ]
+            },
+            {
+              "event": "USER_ACTIVATED",
+              "description": "Emitted when a user account is activated",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the activated user"
+                }
+              ]
+            }
+          ],
+          "listens": [
+            {
+              "event": "INVITE_REDEEMED",
+              "triggers": "CREATE_USER",
+              "scope": "external",
+              "description": "Creates a new user when an invite is redeemed",
+              "payloadMapping": {
+                "inviteCode": "@payload.inviteCode"
+              }
+            },
+            {
+              "event": "TRUST_SCORE_UPDATED",
+              "triggers": "REFRESH_PROFILE",
+              "scope": "external",
+              "description": "Refreshes user profile when trust score changes",
+              "payloadMapping": {
+                "userId": "@payload.userId"
+              }
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "browsing",
+                "isInitial": true
+              },
+              {
+                "name": "registering"
+              },
+              {
+                "name": "viewing"
+              },
+              {
+                "name": "editing"
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "REGISTER",
+                "name": "Register User"
+              },
+              {
+                "key": "VIEW",
+                "name": "View Profile"
+              },
+              {
+                "key": "EDIT",
+                "name": "Edit Profile"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save"
+              },
+              {
+                "key": "CANCEL",
+                "name": "Cancel"
+              },
+              {
+                "key": "SUSPEND",
+                "name": "Suspend User"
+              },
+              {
+                "key": "ACTIVATE",
+                "name": "Activate User"
+              },
+              {
+                "key": "CREATE_USER",
+                "name": "Create User from Invite"
+              },
+              {
+                "key": "REFRESH_PROFILE",
+                "name": "Refresh Profile"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "User"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Community Members",
+                      "actions": [
+                        {
+                          "label": "Register User",
+                          "event": "REGISTER"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "User",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Suspend",
+                          "event": "SUSPEND"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "registering",
+                "event": "REGISTER",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Register User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "fields": [
+                        "email",
+                        "name",
+                        "primaryCategory",
+                        "inviteCode",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "viewing",
+                "event": "VIEW",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "User Profile",
+                      "showBack": true,
+                      "backEvent": "CANCEL",
+                      "actions": [
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  ["fetch", "User", {"id": "@payload.row.id"}],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Edit User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "name",
+                        "email",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "registering",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    "!=",
+                    "@payload.data.email",
+                    ""
+                  ],
+                  [
+                    "!=",
+                    "@payload.data.name",
+                    ""
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.connectionSlots",
+                    1
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.connectionSlots",
+                    100
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "create",
+                    "User",
+                    "@payload.data"
+                  ],
+                  [
+                    "emit",
+                    "USER_REGISTERED",
+                    {
+                      "userId": "@payload.data.id",
+                      "email": "@payload.data.email"
+                    }
+                  ],
+                  [
+                    "navigate",
+                    "/users"
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "viewing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    "!=",
+                    "@payload.data.name",
+                    ""
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.connectionSlots",
+                    1
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.connectionSlots",
+                    100
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "User",
+                    "@payload.id",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "registering",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  ["fetch", "User"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Community Members",
+                      "actions": [
+                        {
+                          "label": "Register User",
+                          "event": "REGISTER"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "User",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Suspend",
+                          "event": "SUSPEND"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  ["fetch", "User"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Community Members",
+                      "actions": [
+                        {
+                          "label": "Register User",
+                          "event": "REGISTER"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "User",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Suspend",
+                          "event": "SUSPEND"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  ["fetch", "User", {"id": "@payload.row.id"}],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "name",
+                        "email",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  ["fetch", "User"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Community Members",
+                      "actions": [
+                        {
+                          "label": "Register User",
+                          "event": "REGISTER"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "User",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Suspend",
+                          "event": "SUSPEND"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "SUSPEND",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "User",
+                    "@payload.id",
+                    {
+                      "status": "suspended"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "ACTIVATE",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "User",
+                    "@payload.id",
+                    {
+                      "status": "active",
+                      "lastActiveAt": "@now"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "USER_ACTIVATED",
+                    {
+                      "userId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "registering",
+                "event": "CREATE_USER",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "fields": [
+                        "email",
+                        "name",
+                        "primaryCategory"
+                      ],
+                      "initialData": {
+                        "inviteCode": "@payload.inviteCode",
+                        "status": "active"
+                      },
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "viewing",
+                "event": "REFRESH_PROFILE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.userId",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserProfileView",
+          "category": "interaction",
+          "linkedEntity": "User",
+          "listens": [
+            {
+              "event": "TRUST_SCORE_UPDATED",
+              "triggers": "REFRESH_PROFILE",
+              "scope": "external",
+              "description": "Refreshes profile view when trust score changes",
+              "payloadMapping": {
+                "userId": "@payload.userId"
+              }
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "viewing",
+                "isInitial": true
+              },
+              {
+                "name": "editing"
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "EDIT",
+                "name": "Edit Profile"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save"
+              },
+              {
+                "key": "CANCEL",
+                "name": "Cancel"
+              },
+              {
+                "key": "REFRESH_PROFILE",
+                "name": "Refresh Profile"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "viewing",
+                "to": "viewing",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "User"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "User Profile",
+                      "actions": [
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Edit User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "name",
+                        "email",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "viewing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    "!=",
+                    "@payload.data.name",
+                    ""
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.connectionSlots",
+                    1
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.connectionSlots",
+                    100
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "User",
+                    "@payload.id",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "viewing",
+                "event": "CANCEL",
+                "effects": [
+                  ["fetch", "User"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "User Profile",
+                      "actions": [
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "viewing",
+                "event": "REFRESH_PROFILE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.userId",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "usedSlots",
+                        "isBetaUser",
+                        "createdAt",
+                        "lastActiveAt"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserRegistration",
+          "category": "interaction",
+          "linkedEntity": "User",
+          "emits": [
+            {
+              "event": "USER_REGISTERED",
+              "description": "Emitted when user registration is successful",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the newly registered user"
+                },
+                {
+                  "name": "email",
+                  "type": "string",
+                  "required": true,
+                  "description": "Email of the registered user"
+                }
+              ]
+            }
+          ],
+          "listens": [
+            {
+              "event": "INVITE_REDEEMED",
+              "triggers": "INIT",
+              "scope": "external",
+              "description": "Initializes registration form when invite is redeemed"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "registering",
+                "isInitial": true
+              },
+              {
+                "name": "success"
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize Registration"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save Registration"
+              },
+              {
+                "key": "CANCEL",
+                "name": "Cancel Registration"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "registering",
+                "to": "registering",
+                "event": "INIT",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Register User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "fields": [
+                        "email",
+                        "name",
+                        "primaryCategory",
+                        "inviteCode",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "registering",
+                "to": "success",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    "!=",
+                    "@payload.data.email",
+                    ""
+                  ],
+                  [
+                    "!=",
+                    "@payload.data.name",
+                    ""
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.connectionSlots",
+                    1
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.connectionSlots",
+                    100
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "create",
+                    "User",
+                    "@payload.data"
+                  ],
+                  [
+                    "emit",
+                    "USER_REGISTERED",
+                    {
+                      "userId": "@payload.data.id",
+                      "email": "@payload.data.email"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Registration Successful"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "User",
+                      "entityId": "@payload.data.id",
+                      "fieldNames": [
+                        "name",
+                        "email",
+                        "status",
+                        "primaryCategory",
+                        "connectionSlots",
+                        "isBetaUser",
+                        "createdAt"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "registering",
+                "to": "registering",
+                "event": "CANCEL",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Register User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "fields": [
+                        "email",
+                        "name",
+                        "primaryCategory",
+                        "inviteCode",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "success",
+                "to": "registering",
+                "event": "INIT",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Register User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "fields": [
+                        "email",
+                        "name",
+                        "primaryCategory",
+                        "inviteCode",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "success",
+                "to": "registering",
+                "event": "CANCEL",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Register User",
+                      "showBack": true,
+                      "backEvent": "CANCEL"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "form-section",
+                      "entity": "User",
+                      "fields": [
+                        "email",
+                        "name",
+                        "primaryCategory",
+                        "inviteCode",
+                        "isBetaUser"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "UsersPage",
+          "path": "/users",
+          "viewType": "list",
+          "primaryEntity": "User",
+          "isInitial": true,
+          "traits": [
+            {
+              "ref": "UserManagement"
+            }
+          ]
+        },
+        {
+          "name": "UserProfilePage",
+          "path": "/users/:id",
+          "viewType": "detail",
+          "primaryEntity": "User",
+          "traits": [
+            {
+              "ref": "UserProfileView"
+            }
+          ]
+        },
+        {
+          "name": "RegisterUserPage",
+          "path": "/users/register",
+          "viewType": "create",
+          "primaryEntity": "User",
+          "traits": [
+            {
+              "ref": "UserRegistration"
+            }
+          ]
+        }
+      ],
+      "domainContext": {
+        "category": "social",
+        "vocabulary": {
+          "item": "User",
+          "create": "Register User",
+          "delete": "Suspend User",
+          "list": "Community Members"
+        },
+        "requestFragment": "Core User & Trust Foundation: User registration, Psychological questionnaire, Initial Trust Score calculation, Basic profile"
+      },
+      "design": {
+        "style": "modern",
+        "uxHints": {
+          "flowPattern": "linear",
+          "listPattern": "entity-cards",
+          "formPattern": "page"
+        }
+      }
+    },
+    {
+      "name": "Intentional Connectivity Engine",
+      "entity": {
+        "name": "Connection",
+        "collection": "connections",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "requesterId",
+            "type": "relation",
+            "relation": {
+              "entity": "User",
+              "cardinality": "one"
+            },
+            "required": true
+          },
+          {
+            "name": "recipientId",
+            "type": "relation",
+            "relation": {
+              "entity": "User",
+              "cardinality": "one"
+            },
+            "required": true
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "pending",
+              "accepted",
+              "rejected",
+              "archived"
+            ],
+            "required": true
+          },
+          {
+            "name": "requestedAt",
+            "type": "timestamp",
+            "required": true
+          },
+          {
+            "name": "acceptedAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "archivedAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "lastInteractionAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "interactionCount",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "category",
+            "type": "enum",
+            "values": [
+              "professional",
+              "personal",
+              "community",
+              "mentor",
+              "mentee"
+            ]
+          },
+          {
+            "name": "notes",
+            "type": "string"
+          },
+          {
+            "name": "isInWaitingRoom",
+            "type": "boolean",
+            "default": false
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ConnectionManagement",
+          "category": "interaction",
+          "linkedEntity": "Connection",
+          "emits": [
+            {
+              "event": "CONNECTION_REQUESTED",
+              "description": "Emitted when a user sends a connection request",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "recipientId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the connection recipient"
+                }
+              ]
+            },
+            {
+              "event": "CONNECTION_ACCEPTED",
+              "description": "Emitted when a connection request is accepted",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "connectionId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the accepted connection"
+                },
+                {
+                  "name": "requesterId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the requester"
+                }
+              ]
+            },
+            {
+              "event": "CONNECTION_REJECTED",
+              "description": "Emitted when a connection request is rejected",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "connectionId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the rejected connection"
+                },
+                {
+                  "name": "requesterId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the requester"
+                }
+              ]
+            },
+            {
+              "event": "CONNECTION_ARCHIVED",
+              "description": "Emitted when a connection is archived",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "connectionId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the archived connection"
+                }
+              ]
+            },
+            {
+              "event": "SLOT_OPENED",
+              "description": "Emitted when a connection slot becomes available",
+              "scope": "external"
+            },
+            {
+              "event": "WAITING_ROOM_ADDED",
+              "description": "Emitted when a connection is added to waiting room (over 150 limit)",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "recipientId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the recipient"
+                }
+              ]
+            }
+          ],
+          "listens": [
+            {
+              "event": "USER_ACTIVATED",
+              "triggers": "ENABLE_CONNECTIONS",
+              "scope": "external",
+              "description": "Enables connection features when user is activated"
+            },
+            {
+              "event": "TRUST_SCORE_UPDATED",
+              "triggers": "REFRESH_RECOMMENDATIONS",
+              "scope": "external",
+              "description": "Refreshes connection recommendations based on trust score"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "browsing",
+                "isInitial": true
+              },
+              {
+                "name": "creating",
+                "isInitial": false
+              },
+              {
+                "name": "viewing",
+                "isInitial": false
+              },
+              {
+                "name": "editing",
+                "isInitial": false
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "CREATE",
+                "name": "Send Request"
+              },
+              {
+                "key": "VIEW",
+                "name": "View Connection"
+              },
+              {
+                "key": "EDIT",
+                "name": "Edit Connection"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save"
+              },
+              {
+                "key": "ACCEPT",
+                "name": "Accept Request"
+              },
+              {
+                "key": "REJECT",
+                "name": "Reject Request"
+              },
+              {
+                "key": "ARCHIVE",
+                "name": "Archive Connection"
+              },
+              {
+                "key": "CLOSE",
+                "name": "Close"
+              },
+              {
+                "key": "BACK",
+                "name": "Back"
+              },
+              {
+                "key": "ENABLE_CONNECTIONS",
+                "name": "Enable Connections"
+              },
+              {
+                "key": "REFRESH_RECOMMENDATIONS",
+                "name": "Refresh Recommendations"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "Connection"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "My Network",
+                      "actions": [
+                        {
+                          "label": "Send Request",
+                          "event": "CREATE"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "Connection",
+                      "fields": [
+                        "recipientId",
+                        "status",
+                        "category",
+                        "lastInteractionAt"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Accept",
+                          "event": "ACCEPT",
+                          "showWhen": [
+                            "=",
+                            "@item.status",
+                            "pending"
+                          ]
+                        },
+                        {
+                          "label": "Reject",
+                          "event": "REJECT",
+                          "showWhen": [
+                            "=",
+                            "@item.status",
+                            "pending"
+                          ]
+                        },
+                        {
+                          "label": "Archive",
+                          "event": "ARCHIVE",
+                          "showWhen": [
+                            "=",
+                            "@item.status",
+                            "accepted"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "creating",
+                "event": "CREATE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Send Connection Request",
+                      "entity": "Connection",
+                      "fields": [
+                        "recipientId",
+                        "category",
+                        "notes"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CLOSE"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "viewing",
+                "event": "VIEW",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Connection Details",
+                      "showBack": true,
+                      "backEvent": "BACK",
+                      "actions": [
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Archive",
+                          "event": "ARCHIVE",
+                          "showWhen": [
+                            "=",
+                            "@entity.status",
+                            "accepted"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-detail",
+                      "entity": "Connection",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "recipientId",
+                        "status",
+                        "category",
+                        "requestedAt",
+                        "acceptedAt",
+                        "lastInteractionAt",
+                        "interactionCount",
+                        "notes"
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  ["fetch", "Connection", {"id": "@payload.row.id"}],
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Edit Connection",
+                      "entity": "Connection",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "category",
+                        "notes"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CLOSE"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "<",
+                  [
+                    "count",
+                    "Connection",
+                    [
+                      "and",
+                      [
+                        "=",
+                        "@Connection.requesterId",
+                        "@currentUser.id"
+                      ],
+                      [
+                        "=",
+                        "@Connection.status",
+                        "accepted"
+                      ]
+                    ]
+                  ],
+                  150
+                ],
+                "effects": [
+                  [
+                    "set",
+                    "@payload.data.requesterId",
+                    "@currentUser.id"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.status",
+                    "pending"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.requestedAt",
+                    "@now"
+                  ],
+                  [
+                    "persist",
+                    "create",
+                    "Connection",
+                    "@payload.data"
+                  ],
+                  [
+                    "emit",
+                    "CONNECTION_REQUESTED",
+                    {
+                      "recipientId": "@payload.data.recipientId"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  ">=",
+                  [
+                    "count",
+                    "Connection",
+                    [
+                      "and",
+                      [
+                        "=",
+                        "@Connection.requesterId",
+                        "@currentUser.id"
+                      ],
+                      [
+                        "=",
+                        "@Connection.status",
+                        "accepted"
+                      ]
+                    ]
+                  ],
+                  150
+                ],
+                "effects": [
+                  [
+                    "set",
+                    "@payload.data.requesterId",
+                    "@currentUser.id"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.status",
+                    "pending"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.requestedAt",
+                    "@now"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.isInWaitingRoom",
+                    true
+                  ],
+                  [
+                    "persist",
+                    "create",
+                    "Connection",
+                    "@payload.data"
+                  ],
+                  [
+                    "emit",
+                    "WAITING_ROOM_ADDED",
+                    {
+                      "recipientId": "@payload.data.recipientId"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "SAVE",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Connection",
+                    "@payload.id",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "ACCEPT",
+                "guard": [
+                  "<",
+                  [
+                    "count",
+                    "Connection",
+                    [
+                      "and",
+                      [
+                        "=",
+                        "@Connection.recipientId",
+                        "@currentUser.id"
+                      ],
+                      [
+                        "=",
+                        "@Connection.status",
+                        "accepted"
+                      ]
+                    ]
+                  ],
+                  150
+                ],
+                "effects": [
+                  [
+                    "set",
+                    "@payload.acceptedAt",
+                    "@now"
+                  ],
+                  [
+                    "set",
+                    "@payload.status",
+                    "accepted"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "Connection",
+                    "@payload.id",
+                    "@payload"
+                  ],
+                  [
+                    "emit",
+                    "CONNECTION_ACCEPTED",
+                    {
+                      "connectionId": "@payload.id",
+                      "requesterId": "@payload.requesterId"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "REJECT",
+                "effects": [
+                  [
+                    "set",
+                    "@payload.status",
+                    "rejected"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "Connection",
+                    "@payload.id",
+                    "@payload"
+                  ],
+                  [
+                    "emit",
+                    "CONNECTION_REJECTED",
+                    {
+                      "connectionId": "@payload.id",
+                      "requesterId": "@payload.requesterId"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "ARCHIVE",
+                "effects": [
+                  [
+                    "set",
+                    "@payload.status",
+                    "archived"
+                  ],
+                  [
+                    "set",
+                    "@payload.archivedAt",
+                    "@now"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "Connection",
+                    "@payload.id",
+                    "@payload"
+                  ],
+                  [
+                    "emit",
+                    "CONNECTION_ARCHIVED",
+                    {
+                      "connectionId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "SLOT_OPENED"
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "ARCHIVE",
+                "effects": [
+                  [
+                    "set",
+                    "@payload.status",
+                    "archived"
+                  ],
+                  [
+                    "set",
+                    "@payload.archivedAt",
+                    "@now"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "Connection",
+                    "@payload.id",
+                    "@payload"
+                  ],
+                  [
+                    "emit",
+                    "CONNECTION_ARCHIVED",
+                    {
+                      "connectionId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "SLOT_OPENED"
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "BACK",
+                "effects": [
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "ConnectionsPage",
+          "path": "/connections",
+          "viewType": "list",
+          "primaryEntity": "Connection",
+          "isInitial": true,
+          "traits": [
+            {
+              "ref": "ConnectionManagement"
+            }
+          ]
+        }
+      ],
+      "domainContext": {
+        "category": "social",
+        "vocabulary": {
+          "item": "Connection",
+          "create": "Send Request",
+          "delete": "Archive Connection",
+          "list": "My Network"
+        },
+        "requestFragment": "Intentional Connectivity Engine: Connection Slot limit (150), Connection Requests, Waiting Room, Basic Lifecycle with constraint that users can only have 150 active connections (Dunbar's number)"
+      },
+      "design": {
+        "style": "modern",
+        "uxHints": {
+          "flowPattern": "crud-cycle",
+          "listPattern": "entity-cards",
+          "formPattern": "modal"
+        }
+      }
+    },
+    {
+      "name": "Relationship Garden & Maintenance",
+      "entity": {
+        "name": "RelationshipHealth",
+        "collection": "relationshipHealth",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "connectionId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "healthStatus",
+            "type": "enum",
+            "values": [
+              "thriving",
+              "healthy",
+              "declining",
+              "withering"
+            ],
+            "required": true
+          },
+          {
+            "name": "lastWateredAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "wateringCount",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "dailyWateringCount",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "outreachCycleDays",
+            "type": "number",
+            "default": 7,
+            "required": true
+          },
+          {
+            "name": "nextOutreachDue",
+            "type": "date"
+          },
+          {
+            "name": "missedOutreachCount",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "visualMetaphor",
+            "type": "enum",
+            "values": [
+              "seedling",
+              "sprout",
+              "sapling",
+              "tree",
+              "flowering"
+            ],
+            "default": "seedling"
+          },
+          {
+            "name": "leafColor",
+            "type": "enum",
+            "values": [
+              "vibrant-green",
+              "green",
+              "yellow",
+              "brown"
+            ],
+            "default": "green"
+          },
+          {
+            "name": "growthPoints",
+            "type": "number",
+            "default": 0
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "RelationshipHealthManagement",
+          "category": "interaction",
+          "linkedEntity": "RelationshipHealth",
+          "emits": [
+            {
+              "event": "RELATIONSHIP_WATERED",
+              "description": "Emitted when user waters a relationship (records interaction)",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "relationshipId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the watered relationship"
+                },
+                {
+                  "name": "growthPoints",
+                  "type": "number",
+                  "required": true,
+                  "description": "Current growth points after watering"
+                }
+              ]
+            },
+            {
+              "event": "HEALTH_DETERIORATED",
+              "description": "Emitted when relationship health declines due to neglect",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "relationshipId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "newStatus",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "HEALTH_IMPROVED",
+              "description": "Emitted when relationship health improves",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "relationshipId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "newStatus",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "OUTREACH_DUE",
+              "description": "Emitted when outreach is due for a relationship",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "relationshipId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "connectionId",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "OUTREACH_MISSED",
+              "description": "Emitted when user misses an outreach deadline",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "relationshipId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "missedCount",
+                  "type": "number",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "GROWTH_MILESTONE",
+              "description": "Emitted when a relationship reaches a growth milestone",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "relationshipId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "milestone",
+                  "type": "string",
+                  "required": true,
+                  "description": "The visual metaphor milestone reached"
+                }
+              ]
+            }
+          ],
+          "listens": [
+            {
+              "event": "CONNECTION_ACCEPTED",
+              "triggers": "CREATE_RELATIONSHIP",
+              "scope": "external",
+              "description": "Creates a new relationship health record when connection is accepted",
+              "payloadMapping": {
+                "connectionId": "@payload.connectionId"
+              }
+            },
+            {
+              "event": "CONNECTION_ARCHIVED",
+              "triggers": "ARCHIVE_RELATIONSHIP",
+              "scope": "external",
+              "description": "Archives relationship health record when connection is archived",
+              "payloadMapping": {
+                "connectionId": "@payload.connectionId"
+              }
+            },
+            {
+              "event": "INTERACTION_LOGGED",
+              "triggers": "WATER_PLANT",
+              "scope": "external",
+              "description": "Waters the plant when an interaction is logged"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "browsing",
+                "isInitial": true
+              },
+              {
+                "name": "creating",
+                "isInitial": false
+              },
+              {
+                "name": "viewing",
+                "isInitial": false
+              },
+              {
+                "name": "editing",
+                "isInitial": false
+              },
+              {
+                "name": "watering",
+                "isInitial": false
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "CREATE",
+                "name": "Plant Seed"
+              },
+              {
+                "key": "VIEW",
+                "name": "View Plant"
+              },
+              {
+                "key": "EDIT",
+                "name": "Tend Plant"
+              },
+              {
+                "key": "WATER",
+                "name": "Water"
+              },
+              {
+                "key": "DELETE",
+                "name": "Prune"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save"
+              },
+              {
+                "key": "CANCEL",
+                "name": "Cancel"
+              },
+              {
+                "key": "CONFIRM_DELETE",
+                "name": "Confirm Prune"
+              },
+              {
+                "key": "WATER_COMPLETE",
+                "name": "Water Complete"
+              },
+              {
+                "key": "CREATE_RELATIONSHIP",
+                "name": "Create Relationship"
+              },
+              {
+                "key": "ARCHIVE_RELATIONSHIP",
+                "name": "Archive Relationship"
+              },
+              {
+                "key": "WATER_PLANT",
+                "name": "Water Plant"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "RelationshipHealth"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "My Garden",
+                      "subtitle": "Nurture your relationships",
+                      "actions": [
+                        {
+                          "label": "Plant Seed",
+                          "event": "CREATE",
+                          "variant": "primary"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "RelationshipHealth",
+                      "fields": [
+                        "visualMetaphor",
+                        "leafColor",
+                        "healthStatus",
+                        "lastWateredAt"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "Water",
+                          "event": "WATER"
+                        },
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Tend",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Prune",
+                          "event": "DELETE"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "creating",
+                "event": "CREATE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Plant New Relationship Seed",
+                      "entity": "RelationshipHealth",
+                      "fields": [
+                        "connectionId",
+                        "outreachCycleDays",
+                        "visualMetaphor"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "viewing",
+                "event": "VIEW",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "entity-detail",
+                      "entity": "RelationshipHealth",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "connectionId",
+                        "healthStatus",
+                        "visualMetaphor",
+                        "leafColor",
+                        "wateringCount",
+                        "growthPoints",
+                        "lastWateredAt",
+                        "nextOutreachDue"
+                      ],
+                      "headerActions": [
+                        {
+                          "label": "Water",
+                          "event": "WATER"
+                        },
+                        {
+                          "label": "Tend",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Close",
+                          "event": "CANCEL"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  ["fetch", "RelationshipHealth", {"id": "@payload.row.id"}],
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Tend Your Plant",
+                      "entity": "RelationshipHealth",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "outreachCycleDays",
+                        "visualMetaphor"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "watering",
+                "event": "WATER",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "confirm-dialog",
+                      "title": "Water This Plant?",
+                      "message": "This will record an interaction and help your relationship grow!",
+                      "onConfirm": "WATER_COMPLETE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "DELETE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "confirm-dialog",
+                      "title": "Prune This Plant?",
+                      "message": "This will permanently remove this relationship from your garden.",
+                      "onConfirm": "CONFIRM_DELETE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    ">=",
+                    "@payload.data.outreachCycleDays",
+                    1
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.outreachCycleDays",
+                    365
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "create",
+                    "RelationshipHealth",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    ">=",
+                    "@payload.data.outreachCycleDays",
+                    1
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.outreachCycleDays",
+                    365
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "RelationshipHealth",
+                    "@payload.id",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "watering",
+                "to": "browsing",
+                "event": "WATER_COMPLETE",
+                "effects": [
+                  [
+                    "set",
+                    "@entity.lastWateredAt",
+                    "@now"
+                  ],
+                  [
+                    "set",
+                    "@entity.wateringCount",
+                    [
+                      "+",
+                      "@entity.wateringCount",
+                      1
+                    ]
+                  ],
+                  [
+                    "set",
+                    "@entity.dailyWateringCount",
+                    [
+                      "+",
+                      "@entity.dailyWateringCount",
+                      1
+                    ]
+                  ],
+                  [
+                    "set",
+                    "@entity.growthPoints",
+                    [
+                      "+",
+                      "@entity.growthPoints",
+                      10
+                    ]
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "RelationshipHealth",
+                    "@payload.id",
+                    "@entity"
+                  ],
+                  [
+                    "emit",
+                    "RELATIONSHIP_WATERED",
+                    {
+                      "relationshipId": "@payload.id",
+                      "growthPoints": "@entity.growthPoints"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "CONFIRM_DELETE",
+                "effects": [
+                  [
+                    "persist",
+                    "delete",
+                    "RelationshipHealth",
+                    "@payload.id"
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "watering",
+                "to": "browsing",
+                "event": "CANCEL",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Tend Your Plant",
+                      "entity": "RelationshipHealth",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "outreachCycleDays",
+                        "visualMetaphor"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "watering",
+                "event": "WATER",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "confirm-dialog",
+                      "title": "Water This Plant?",
+                      "message": "This will record an interaction and help your relationship grow!",
+                      "onConfirm": "WATER_COMPLETE",
+                      "onCancel": "CANCEL"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "RelationshipGardenPage",
+          "path": "/garden",
+          "viewType": "list",
+          "primaryEntity": "RelationshipHealth",
+          "isInitial": true,
+          "traits": [
+            {
+              "ref": "RelationshipHealthManagement"
+            }
+          ]
+        }
+      ],
+      "domainContext": {
+        "category": "social",
+        "vocabulary": {
+          "item": "Relationship",
+          "create": "Plant Seed",
+          "delete": "Prune",
+          "list": "My Garden",
+          "action": "Water"
+        },
+        "requestFragment": "Relationship Maintenance & Gamification: Outreach cycles, Garden visualization (plants/trees), Relationship Lifecycle State Machine with visual metaphor where neglect causes brown leaves and interaction causes growth"
+      },
+      "design": {
+        "style": "playful",
+        "uxHints": {
+          "flowPattern": "hub-spoke",
+          "listPattern": "entity-cards",
+          "formPattern": "modal"
+        }
+      }
+    },
+    {
+      "name": "Trust Intelligence & Collaboration",
+      "entity": {
+        "name": "TrustScore",
+        "collection": "trustScores",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "userId",
+            "type": "relation",
+            "relation": {
+              "entity": "User",
+              "cardinality": "one"
+            },
+            "required": true
+          },
+          {
+            "name": "score",
+            "type": "number",
+            "required": true,
+            "min": 0,
+            "max": 100
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "active",
+              "archived",
+              "pending"
+            ],
+            "required": true
+          },
+          {
+            "name": "psychCompatibilityScore",
+            "type": "number",
+            "required": true,
+            "min": 0,
+            "max": 100
+          },
+          {
+            "name": "interactionScore",
+            "type": "number",
+            "required": true,
+            "min": 0,
+            "max": 100
+          },
+          {
+            "name": "peerVerificationScore",
+            "type": "number",
+            "required": true,
+            "min": 0,
+            "max": 100
+          },
+          {
+            "name": "biasAdjustmentScore",
+            "type": "number",
+            "required": true,
+            "min": -20,
+            "max": 20
+          },
+          {
+            "name": "lastCalculatedAt",
+            "type": "timestamp",
+            "required": true
+          },
+          {
+            "name": "calculationVersion",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "totalInteractions",
+            "type": "number",
+            "required": true,
+            "min": 0
+          },
+          {
+            "name": "verifiedByCount",
+            "type": "number",
+            "required": true,
+            "min": 0
+          },
+          {
+            "name": "trustCircleIds",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "TrustScoreManagement",
+          "category": "interaction",
+          "linkedEntity": "TrustScore",
+          "emits": [
+            {
+              "event": "TRUST_SCORE_CALCULATED",
+              "description": "Emitted when a new trust score is calculated for a user",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the user"
+                },
+                {
+                  "name": "score",
+                  "type": "number",
+                  "required": true,
+                  "description": "Calculated trust score (0-100)"
+                }
+              ]
+            },
+            {
+              "event": "TRUST_SCORE_UPDATED",
+              "description": "Emitted when an existing trust score is recalculated",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the user"
+                },
+                {
+                  "name": "score",
+                  "type": "number",
+                  "required": true,
+                  "description": "Updated trust score"
+                }
+              ]
+            },
+            {
+              "event": "TRUST_CIRCLE_FORMED",
+              "description": "Emitted when a new trust circle is identified",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "circleId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "memberIds",
+                  "type": "array",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "TEAM_DISCOVERED",
+              "description": "Emitted when potential team members are identified based on trust",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "teamId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "memberIds",
+                  "type": "array",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "BIAS_ADJUSTED",
+              "description": "Emitted when bias adjustment is applied to scores",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "adjustment",
+                  "type": "number",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "listens": [
+            {
+              "event": "USER_REGISTERED",
+              "triggers": "CALCULATE_INITIAL_SCORE",
+              "scope": "external",
+              "description": "Calculates initial trust score when user registers",
+              "payloadMapping": {
+                "userId": "@payload.userId"
+              }
+            },
+            {
+              "event": "ASSESSMENT_COMPLETED",
+              "triggers": "UPDATE_PSYCH_SCORE",
+              "scope": "external",
+              "description": "Updates psych compatibility score when assessment is completed",
+              "payloadMapping": {
+                "userId": "@payload.userId",
+                "score": "@payload.score"
+              }
+            },
+            {
+              "event": "RELATIONSHIP_WATERED",
+              "triggers": "UPDATE_INTERACTION_SCORE",
+              "scope": "external",
+              "description": "Updates interaction score when user waters a relationship",
+              "payloadMapping": {
+                "userId": "@payload.userId"
+              }
+            },
+            {
+              "event": "CONNECTION_ACCEPTED",
+              "triggers": "RECALCULATE_SCORE",
+              "scope": "external",
+              "description": "Recalculates trust score when a new connection is accepted",
+              "payloadMapping": {
+                "userId": "@payload.requesterId"
+              }
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "browsing",
+                "isInitial": true
+              },
+              {
+                "name": "calculating"
+              },
+              {
+                "name": "viewing"
+              },
+              {
+                "name": "analyzing"
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "CALCULATE_SCORE",
+                "name": "Calculate Score"
+              },
+              {
+                "key": "VIEW_DETAILS",
+                "name": "View Details"
+              },
+              {
+                "key": "ANALYZE_TRUST",
+                "name": "Analyze Trust"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save"
+              },
+              {
+                "key": "CLOSE",
+                "name": "Close"
+              },
+              {
+                "key": "ARCHIVE",
+                "name": "Archive Score"
+              },
+              {
+                "key": "CALCULATE_INITIAL_SCORE",
+                "name": "Calculate Initial Score"
+              },
+              {
+                "key": "UPDATE_PSYCH_SCORE",
+                "name": "Update Psych Score"
+              },
+              {
+                "key": "UPDATE_INTERACTION_SCORE",
+                "name": "Update Interaction Score"
+              },
+              {
+                "key": "RECALCULATE_SCORE",
+                "name": "Recalculate Score"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "TrustScore"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Trust Intelligence",
+                      "subtitle": "Enhanced Trust Algorithm & Collaboration",
+                      "actions": [
+                        {
+                          "label": "Calculate Score",
+                          "event": "CALCULATE_SCORE",
+                          "variant": "primary"
+                        },
+                        {
+                          "label": "Analyze Trust",
+                          "event": "ANALYZE_TRUST"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-cards",
+                      "entity": "TrustScore",
+                      "fields": [
+                        "score",
+                        "status",
+                        "lastCalculatedAt"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View Details",
+                          "event": "VIEW_DETAILS"
+                        },
+                        {
+                          "label": "Archive",
+                          "event": "ARCHIVE"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "calculating",
+                "event": "CALCULATE_SCORE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Calculate Trust Score",
+                      "entity": "TrustScore",
+                      "fields": [
+                        "userId",
+                        "psychCompatibilityScore",
+                        "interactionScore",
+                        "peerVerificationScore",
+                        "biasAdjustmentScore"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CLOSE"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "calculating",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    ">=",
+                    "@payload.data.score",
+                    0
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.score",
+                    100
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.psychCompatibilityScore",
+                    0
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.psychCompatibilityScore",
+                    100
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.interactionScore",
+                    0
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.interactionScore",
+                    100
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.peerVerificationScore",
+                    0
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.peerVerificationScore",
+                    100
+                  ],
+                  [
+                    ">=",
+                    "@payload.data.biasAdjustmentScore",
+                    -20
+                  ],
+                  [
+                    "<=",
+                    "@payload.data.biasAdjustmentScore",
+                    20
+                  ]
+                ],
+                "effects": [
+                  [
+                    "set",
+                    "@payload.data.lastCalculatedAt",
+                    "@now"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.calculationVersion",
+                    "v2.1"
+                  ],
+                  [
+                    "set",
+                    "@payload.data.status",
+                    "active"
+                  ],
+                  [
+                    "persist",
+                    "create",
+                    "TrustScore",
+                    "@payload.data"
+                  ],
+                  [
+                    "emit",
+                    "TRUST_SCORE_CALCULATED",
+                    {
+                      "userId": "@payload.data.userId",
+                      "score": "@payload.data.score"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "calculating",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "viewing",
+                "event": "VIEW_DETAILS",
+                "effects": [
+                  [
+                    "render-ui",
+                    "sidebar",
+                    {
+                      "type": "entity-detail",
+                      "entity": "TrustScore",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "score",
+                        "status",
+                        "psychCompatibilityScore",
+                        "interactionScore",
+                        "peerVerificationScore",
+                        "biasAdjustmentScore",
+                        "totalInteractions",
+                        "verifiedByCount",
+                        "lastCalculatedAt"
+                      ],
+                      "headerActions": [
+                        {
+                          "label": "Recalculate",
+                          "event": "RECALCULATE_SCORE"
+                        },
+                        {
+                          "label": "Archive",
+                          "event": "ARCHIVE"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "sidebar",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "analyzing",
+                "event": "ANALYZE_TRUST",
+                "effects": [
+                  [
+                    "render-ui",
+                    "center",
+                    {
+                      "type": "dashboard-grid",
+                      "title": "Trust Analysis Dashboard",
+                      "items": [
+                        {
+                          "type": "stats",
+                          "title": "Trust Metrics",
+                          "metrics": [
+                            {
+                              "label": "Average Score",
+                              "value": "@TrustScore.avg.score"
+                            },
+                            {
+                              "label": "Active Scores",
+                              "value": "@TrustScore.count.status.active"
+                            },
+                            {
+                              "label": "Trust Circles",
+                              "value": "@TrustScore.distinct.trustCircleIds"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "entity-table",
+                          "title": "Top Trust Scores",
+                          "entity": "TrustScore",
+                          "columns": [
+                            "userId",
+                            "score",
+                            "status",
+                            "lastCalculatedAt"
+                          ],
+                          "sortBy": "score",
+                          "sortOrder": "desc",
+                          "limit": 10
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "analyzing",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "center",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "ARCHIVE",
+                "effects": [
+                  [
+                    "set",
+                    "@TrustScore[@payload.id].status",
+                    "archived"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "TrustScore",
+                    "@payload.id",
+                    {
+                      "status": "archived"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "TRUST_SCORE_UPDATED",
+                    {
+                      "id": "@payload.id",
+                      "status": "archived"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "calculating",
+                "event": "CALCULATE_INITIAL_SCORE",
+                "effects": [
+                  [
+                    "set",
+                    "@payload.data.psychCompatibilityScore",
+                    50
+                  ],
+                  [
+                    "set",
+                    "@payload.data.interactionScore",
+                    0
+                  ],
+                  [
+                    "set",
+                    "@payload.data.peerVerificationScore",
+                    0
+                  ],
+                  [
+                    "set",
+                    "@payload.data.biasAdjustmentScore",
+                    0
+                  ],
+                  [
+                    "set",
+                    "@payload.data.totalInteractions",
+                    0
+                  ],
+                  [
+                    "set",
+                    "@payload.data.verifiedByCount",
+                    0
+                  ],
+                  [
+                    "set",
+                    "@payload.data.status",
+                    "pending"
+                  ],
+                  [
+                    "emit",
+                    "SAVE"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "UPDATE_PSYCH_SCORE",
+                "effects": [
+                  [
+                    "set",
+                    "@TrustScore[@payload.userId].psychCompatibilityScore",
+                    "@payload.score"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "TrustScore",
+                    "@payload.userId",
+                    {
+                      "psychCompatibilityScore": "@payload.score"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "RECALCULATE_SCORE"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "UPDATE_INTERACTION_SCORE",
+                "effects": [
+                  [
+                    "set",
+                    "@TrustScore[@payload.userId].interactionScore",
+                    "@payload.score"
+                  ],
+                  [
+                    "set",
+                    "@TrustScore[@payload.userId].totalInteractions",
+                    [
+                      "+",
+                      "@TrustScore[@payload.userId].totalInteractions",
+                      1
+                    ]
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "TrustScore",
+                    "@payload.userId",
+                    {
+                      "interactionScore": "@payload.score",
+                      "totalInteractions": "@TrustScore[@payload.userId].totalInteractions"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "RECALCULATE_SCORE"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "RECALCULATE_SCORE",
+                "effects": [
+                  [
+                    "set",
+                    "@TrustScore[@payload.userId].score",
+                    [
+                      "/",
+                      [
+                        "+",
+                        "@TrustScore[@payload.userId].psychCompatibilityScore",
+                        "@TrustScore[@payload.userId].interactionScore",
+                        "@TrustScore[@payload.userId].peerVerificationScore"
+                      ],
+                      3
+                    ]
+                  ],
+                  [
+                    "set",
+                    "@TrustScore[@payload.userId].score",
+                    [
+                      "+",
+                      "@TrustScore[@payload.userId].score",
+                      "@TrustScore[@payload.userId].biasAdjustmentScore"
+                    ]
+                  ],
+                  [
+                    "set",
+                    "@TrustScore[@payload.userId].lastCalculatedAt",
+                    "@now"
+                  ],
+                  [
+                    "persist",
+                    "update",
+                    "TrustScore",
+                    "@payload.userId",
+                    {
+                      "score": "@TrustScore[@payload.userId].score",
+                      "lastCalculatedAt": "@now"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "TRUST_SCORE_UPDATED",
+                    {
+                      "userId": "@payload.userId",
+                      "score": "@TrustScore[@payload.userId].score"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "TrustIntelligencePage",
+          "path": "/trust-intelligence",
+          "viewType": "dashboard",
+          "primaryEntity": "TrustScore",
+          "isInitial": true,
+          "traits": [
+            {
+              "ref": "TrustScoreManagement"
+            }
+          ]
+        }
+      ],
+      "domainContext": {
+        "category": "social",
+        "vocabulary": {
+          "item": "Trust Score",
+          "create": "Calculate Score",
+          "delete": "Archive Score",
+          "list": "Trust Intelligence"
+        },
+        "requestFragment": "Trust Intelligence & Collaboration: Enhanced Trust Algorithm (Psych Compatibility + Interaction + Peer Verification), Bias Mitigation, Trust Circles, Team Discovery with minimum interaction threshold before trust impact"
+      },
+      "design": {
+        "style": "data-driven",
+        "uxHints": {
+          "flowPattern": "hub-spoke",
+          "listPattern": "entity-cards",
+          "formPattern": "modal"
+        }
+      }
+    },
+    {
+      "name": "Platform Launch & Admin Controls",
+      "entity": {
+        "name": "Invite",
+        "collection": "invites",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true,
+            "primaryKey": true
+          },
+          {
+            "name": "code",
+            "type": "string",
+            "required": true,
+            "unique": true
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "pending",
+              "sent",
+              "redeemed",
+              "expired",
+              "revoked"
+            ],
+            "required": true
+          },
+          {
+            "name": "createdBy",
+            "type": "relation",
+            "relation": {
+              "entity": "User",
+              "cardinality": "one"
+            },
+            "required": true
+          },
+          {
+            "name": "redeemedBy",
+            "type": "relation",
+            "relation": {
+              "entity": "User",
+              "cardinality": "one"
+            }
+          },
+          {
+            "name": "createdAt",
+            "type": "timestamp",
+            "required": true
+          },
+          {
+            "name": "sentAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "redeemedAt",
+            "type": "timestamp"
+          },
+          {
+            "name": "expiresAt",
+            "type": "timestamp",
+            "required": true
+          },
+          {
+            "name": "recipientEmail",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "inviteType",
+            "type": "enum",
+            "values": [
+              "beta",
+              "premium",
+              "standard"
+            ],
+            "required": true
+          },
+          {
+            "name": "maxUses",
+            "type": "number",
+            "required": true,
+            "min": 1
+          },
+          {
+            "name": "usedCount",
+            "type": "number",
+            "required": true,
+            "min": 0
+          }
+        ]
+      },
+      "traits": [
+        {
+          "name": "InviteManagement",
+          "category": "interaction",
+          "linkedEntity": "Invite",
+          "emits": [
+            {
+              "event": "INVITE_CREATED",
+              "description": "Emitted when a new invite is created",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "inviteId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the created invite"
+                },
+                {
+                  "name": "type",
+                  "type": "string",
+                  "required": true,
+                  "description": "Type of invite (beta, premium, standard)"
+                }
+              ]
+            },
+            {
+              "event": "INVITE_SENT",
+              "description": "Emitted when an invite is sent to recipient",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "inviteId",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "recipientEmail",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "INVITE_REDEEMED",
+              "description": "Emitted when an invite is redeemed by a user",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "inviteId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the redeemed invite"
+                },
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the user who redeemed"
+                },
+                {
+                  "name": "inviteCode",
+                  "type": "string",
+                  "required": true,
+                  "description": "The invite code that was redeemed"
+                }
+              ]
+            },
+            {
+              "event": "INVITE_EXPIRED",
+              "description": "Emitted when an invite expires",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "inviteId",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "INVITE_REVOKED",
+              "description": "Emitted when an invite is revoked by admin",
+              "scope": "external",
+              "payload": [
+                {
+                  "name": "inviteId",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "event": "ADMIN_ALERT",
+              "description": "Admin notification for important platform events",
+              "scope": "internal",
+              "payload": [
+                {
+                  "name": "type",
+                  "type": "string",
+                  "required": true,
+                  "description": "Alert type"
+                },
+                {
+                  "name": "data",
+                  "type": "object",
+                  "description": "Alert data"
+                }
+              ]
+            }
+          ],
+          "listens": [
+            {
+              "event": "USER_REGISTERED",
+              "triggers": "MARK_INVITE_REDEEMED",
+              "scope": "external",
+              "description": "Marks invite as redeemed when user completes registration",
+              "payloadMapping": {
+                "userId": "@payload.userId",
+                "inviteId": "@payload.inviteId"
+              }
+            },
+            {
+              "event": "TRUST_SCORE_CALCULATED",
+              "triggers": "LOG_METRIC",
+              "scope": "external",
+              "description": "Logs trust metric for admin dashboard"
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              {
+                "name": "browsing",
+                "isInitial": true
+              },
+              {
+                "name": "creating"
+              },
+              {
+                "name": "viewing"
+              },
+              {
+                "name": "editing"
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "CREATE",
+                "name": "Create Invite"
+              },
+              {
+                "key": "VIEW",
+                "name": "View Invite"
+              },
+              {
+                "key": "EDIT",
+                "name": "Edit Invite"
+              },
+              {
+                "key": "SAVE",
+                "name": "Save"
+              },
+              {
+                "key": "REVOKE",
+                "name": "Revoke Invite"
+              },
+              {
+                "key": "RESEND",
+                "name": "Resend Invite"
+              },
+              {
+                "key": "CLOSE",
+                "name": "Close"
+              },
+              {
+                "key": "MARK_INVITE_REDEEMED",
+                "name": "Mark Redeemed"
+              },
+              {
+                "key": "LOG_METRIC",
+                "name": "Log Metric"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "Invite"],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "page-header",
+                      "title": "Invitations",
+                      "subtitle": "Manage platform access invites",
+                      "actions": [
+                        {
+                          "label": "Create Invite",
+                          "event": "CREATE",
+                          "variant": "primary"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "entity-table",
+                      "entity": "Invite",
+                      "columns": [
+                        "code",
+                        "recipientEmail",
+                        "inviteType",
+                        "status",
+                        "createdAt",
+                        "expiresAt"
+                      ],
+                      "itemActions": [
+                        {
+                          "label": "View",
+                          "event": "VIEW"
+                        },
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Resend",
+                          "event": "RESEND"
+                        },
+                        {
+                          "label": "Revoke",
+                          "event": "REVOKE"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "creating",
+                "event": "CREATE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Create Invite",
+                      "entity": "Invite",
+                      "fields": [
+                        "recipientEmail",
+                        "inviteType",
+                        "maxUses"
+                      ],
+                      "initialData": {
+                        "status": "pending",
+                        "maxUses": 1,
+                        "usedCount": 0,
+                        "createdAt": "@now",
+                        "expiresAt": [
+                          "add",
+                          "@now",
+                          [
+                            "days",
+                            30
+                          ]
+                        ]
+                      },
+                      "onSubmit": "SAVE",
+                      "onCancel": "CLOSE"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "viewing",
+                "event": "VIEW",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "entity-detail",
+                      "entity": "Invite",
+                      "entityId": "@payload.row.id",
+                      "fieldNames": [
+                        "code",
+                        "recipientEmail",
+                        "inviteType",
+                        "status",
+                        "maxUses",
+                        "usedCount",
+                        "createdAt",
+                        "sentAt",
+                        "redeemedAt",
+                        "expiresAt"
+                      ],
+                      "headerActions": [
+                        {
+                          "label": "Edit",
+                          "event": "EDIT"
+                        },
+                        {
+                          "label": "Resend",
+                          "event": "RESEND"
+                        },
+                        {
+                          "label": "Revoke",
+                          "event": "REVOKE"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  ["fetch", "Invite", {"id": "@payload.row.id"}],
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Edit Invite",
+                      "entity": "Invite",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "recipientEmail",
+                        "inviteType",
+                        "maxUses",
+                        "expiresAt"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CLOSE"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    ">=",
+                    "@payload.data.maxUses",
+                    1
+                  ],
+                  [
+                    ">",
+                    "@payload.data.expiresAt",
+                    "@now"
+                  ],
+                  [
+                    "matches",
+                    "@payload.data.recipientEmail",
+                    "^[^@]+@[^@]+\\.[^@]+$"
+                  ]
+                ],
+                "effects": [
+                  [
+                    "set",
+                    "@payload.data.code",
+                    [
+                      "generate",
+                      "invite-code"
+                    ]
+                  ],
+                  [
+                    "persist",
+                    "create",
+                    "Invite",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INVITE_CREATED",
+                    {
+                      "inviteId": "@payload.data.id",
+                      "type": "@payload.data.inviteType"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "SAVE",
+                "guard": [
+                  "and",
+                  [
+                    ">=",
+                    "@payload.data.maxUses",
+                    1
+                  ],
+                  [
+                    ">",
+                    "@payload.data.expiresAt",
+                    "@now"
+                  ],
+                  [
+                    "matches",
+                    "@payload.data.recipientEmail",
+                    "^[^@]+@[^@]+\\.[^@]+$"
+                  ]
+                ],
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Invite",
+                    "@payload.id",
+                    "@payload.data"
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "editing",
+                "event": "EDIT",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    {
+                      "type": "form-section",
+                      "title": "Edit Invite",
+                      "entity": "Invite",
+                      "entityId": "@payload.row.id",
+                      "fields": [
+                        "recipientEmail",
+                        "inviteType",
+                        "maxUses",
+                        "expiresAt"
+                      ],
+                      "onSubmit": "SAVE",
+                      "onCancel": "CLOSE"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "REVOKE",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Invite",
+                    "@payload.id",
+                    {
+                      "status": "revoked"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INVITE_REVOKED",
+                    {
+                      "inviteId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "ADMIN_ALERT",
+                    {
+                      "type": "invite_revoked",
+                      "inviteId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "REVOKE",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Invite",
+                    "@payload.id",
+                    {
+                      "status": "revoked"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INVITE_REVOKED",
+                    {
+                      "inviteId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "ADMIN_ALERT",
+                    {
+                      "type": "invite_revoked",
+                      "inviteId": "@payload.id"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "RESEND",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Invite",
+                    "@payload.id",
+                    {
+                      "status": "sent",
+                      "sentAt": "@now"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INVITE_SENT",
+                    {
+                      "inviteId": "@payload.id",
+                      "recipientEmail": "@payload.recipientEmail"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "RESEND",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Invite",
+                    "@payload.id",
+                    {
+                      "status": "sent",
+                      "sentAt": "@now"
+                    }
+                  ],
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ],
+                  [
+                    "emit",
+                    "INVITE_SENT",
+                    {
+                      "inviteId": "@payload.id",
+                      "recipientEmail": "@payload.recipientEmail"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              },
+              {
+                "from": "creating",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "viewing",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "editing",
+                "to": "browsing",
+                "event": "CLOSE",
+                "effects": [
+                  [
+                    "render-ui",
+                    "modal",
+                    null
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "MARK_INVITE_REDEEMED",
+                "effects": [
+                  [
+                    "persist",
+                    "update",
+                    "Invite",
+                    "@payload.inviteId",
+                    {
+                      "status": "redeemed",
+                      "redeemedAt": "@now",
+                      "redeemedBy": "@payload.userId",
+                      "usedCount": [
+                        "+",
+                        "@entity.usedCount",
+                        1
+                      ]
+                    }
+                  ],
+                  [
+                    "emit",
+                    "INVITE_REDEEMED",
+                    {
+                      "inviteId": "@payload.inviteId",
+                      "userId": "@payload.userId"
+                    }
+                  ],
+                  [
+                    "emit",
+                    "ADMIN_ALERT",
+                    {
+                      "type": "invite_redeemed",
+                      "inviteId": "@payload.inviteId"
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "browsing",
+                "to": "browsing",
+                "event": "LOG_METRIC",
+                "effects": [
+                  [
+                    "emit",
+                    "ADMIN_ALERT",
+                    {
+                      "type": "trust_metric",
+                      "data": "@payload"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "AdminDashboard",
+          "category": "display",
+          "linkedEntity": "Invite",
+          "stateMachine": {
+            "states": [
+              {
+                "name": "dashboard",
+                "isInitial": true
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "key": "REFRESH",
+                "name": "Refresh"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "dashboard",
+                "to": "dashboard",
+                "event": "INIT",
+                "effects": [
+                  ["fetch", "Invite"],
+                  [
+                    "render-ui",
+                    "sidebar",
+                    {
+                      "type": "stats",
+                      "title": "Invite Statistics",
+                      "stats": [
+                        {
+                          "label": "Total Invites",
+                          "value": [
+                            "count",
+                            "Invite"
+                          ]
+                        },
+                        {
+                          "label": "Pending",
+                          "value": [
+                            "count",
+                            "Invite",
+                            {
+                              "status": "pending"
+                            }
+                          ]
+                        },
+                        {
+                          "label": "Redeemed",
+                          "value": [
+                            "count",
+                            "Invite",
+                            {
+                              "status": "redeemed"
+                            }
+                          ]
+                        },
+                        {
+                          "label": "Expired",
+                          "value": [
+                            "count",
+                            "Invite",
+                            {
+                              "status": "expired"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "from": "dashboard",
+                "to": "dashboard",
+                "event": "REFRESH",
+                "effects": [
+                  [
+                    "emit",
+                    "INIT"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "InvitesPage",
+          "path": "/admin/invites",
+          "viewType": "list",
+          "primaryEntity": "Invite",
+          "isInitial": true,
+          "traits": [
+            {
+              "ref": "InviteManagement"
+            },
+            {
+              "ref": "AdminDashboard"
+            }
+          ]
+        }
+      ],
+      "domainContext": {
+        "category": "business",
+        "vocabulary": {
+          "item": "Invite",
+          "create": "Create Invite",
+          "delete": "Revoke Invite",
+          "list": "Invitations"
+        },
+        "requestFragment": "Platform Launch & Admin Controls: Invite-only system with 30-day expiration, Admin Dashboard, User Reporting, Premium/Beta flags for controlled beta launch"
+      },
+      "design": {
+        "style": "modern",
+        "uxHints": {
+          "flowPattern": "hub-spoke",
+          "listPattern": "entity-table",
+          "formPattern": "modal"
+        }
+      }
+    }
+  ]
+}

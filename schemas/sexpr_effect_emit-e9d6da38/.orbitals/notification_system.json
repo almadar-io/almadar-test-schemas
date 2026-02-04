@@ -1,0 +1,641 @@
+{
+  "name": "Notification System",
+  "entity": {
+    "name": "Notification",
+    "collection": "notifications",
+    "fields": [
+      {
+        "name": "type",
+        "type": "enum",
+        "values": [
+          "info",
+          "warning",
+          "error",
+          "success"
+        ],
+        "required": true
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "recipient",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "unread",
+          "read",
+          "dismissed"
+        ],
+        "required": true,
+        "default": "unread"
+      },
+      {
+        "name": "createdAt",
+        "type": "date",
+        "required": true
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "NotificationInteraction",
+      "category": "interaction",
+      "linkedEntity": "Notification",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create"
+          },
+          {
+            "key": "VIEW",
+            "name": "View"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit"
+          },
+          {
+            "key": "MARK_READ",
+            "name": "Mark as Read"
+          },
+          {
+            "key": "DISMISS",
+            "name": "Dismiss"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Notifications",
+                  "actions": [
+                    {
+                      "label": "New Notification",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "unread",
+                        "read",
+                        "dismissed"
+                      ]
+                    },
+                    {
+                      "field": "type",
+                      "filterType": "select",
+                      "label": "Type",
+                      "options": [
+                        "info",
+                        "warning",
+                        "error",
+                        "success"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Notification",
+                  "columns": [
+                    "type",
+                    "message",
+                    "recipient",
+                    "status",
+                    "createdAt"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Mark Read",
+                      "event": "MARK_READ",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Dismiss",
+                      "event": "DISMISS",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Notification",
+                  "fields": [
+                    {
+                      "field": "type",
+                      "label": "Type",
+                      "inputType": "select",
+                      "values": [
+                        "info",
+                        "warning",
+                        "error",
+                        "success"
+                      ]
+                    },
+                    {
+                      "field": "message",
+                      "label": "Message",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "recipient",
+                      "label": "Recipient",
+                      "inputType": "text"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Create",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Notification",
+                  "fieldNames": [
+                    "type",
+                    "message",
+                    "recipient",
+                    "status",
+                    "createdAt"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "page-header",
+                  "title": "Notification Details",
+                  "actions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Mark Read",
+                      "event": "MARK_READ",
+                      "variant": "secondary"
+                    },
+                    {
+                      "label": "Dismiss",
+                      "event": "DISMISS",
+                      "variant": "secondary"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Notification",
+                  "fields": [
+                    {
+                      "field": "type",
+                      "label": "Type",
+                      "inputType": "select",
+                      "values": [
+                        "info",
+                        "warning",
+                        "error",
+                        "success"
+                      ]
+                    },
+                    {
+                      "field": "message",
+                      "label": "Message",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "recipient",
+                      "label": "Recipient",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "unread",
+                        "read",
+                        "dismissed"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "MARK_READ",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "status": "read"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification marked as read",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "viewing",
+            "event": "MARK_READ",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "status": "read"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification marked as read",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "DISMISS",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "status": "dismissed"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification dismissed",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "viewing",
+            "event": "DISMISS",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "status": "dismissed"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification dismissed",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "DELETE",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "Notification",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification deleted",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "DELETE",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "Notification",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification deleted",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "create",
+                "Notification",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification created successfully",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification updated successfully",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "NotificationsPage",
+      "path": "/notifications",
+      "viewType": "list",
+      "primaryEntity": "Notification",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "NotificationInteraction"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "NOTIFICATION_CREATED",
+    "NOTIFICATION_READ",
+    "NOTIFICATION_DISMISSED",
+    "NOTIFICATION_DELETED"
+  ],
+  "listens": []
+}

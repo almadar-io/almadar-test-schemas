@@ -1,0 +1,773 @@
+{
+  "name": "Order Approval System",
+  "entity": {
+    "name": "Order",
+    "collection": "orders",
+    "fields": [
+      {
+        "name": "orderNumber",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "pending",
+          "under_review",
+          "approved",
+          "rejected"
+        ],
+        "required": true,
+        "default": "pending"
+      },
+      {
+        "name": "priority",
+        "type": "enum",
+        "values": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ],
+        "required": true,
+        "default": "medium"
+      },
+      {
+        "name": "createdAt",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "createdBy",
+        "type": "relation",
+        "relation": {
+          "entity": "User"
+        },
+        "required": true
+      },
+      {
+        "name": "reviewedBy",
+        "type": "relation",
+        "relation": {
+          "entity": "User"
+        }
+      },
+      {
+        "name": "reviewedAt",
+        "type": "date"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "ApprovalWorkflow",
+      "category": "workflow",
+      "linkedEntity": "Order",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "reviewing"
+          },
+          {
+            "name": "approving"
+          },
+          {
+            "name": "rejecting"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Order"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Order"
+          },
+          {
+            "key": "REVIEW",
+            "name": "Start Review"
+          },
+          {
+            "key": "APPROVE",
+            "name": "Approve"
+          },
+          {
+            "key": "REJECT",
+            "name": "Reject"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "CONFIRM_APPROVE",
+            "name": "Confirm Approval"
+          },
+          {
+            "key": "CONFIRM_REJECT",
+            "name": "Confirm Rejection"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Order Approval System",
+                  "actions": [
+                    {
+                      "label": "New Order",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "pending",
+                        "under_review",
+                        "approved",
+                        "rejected"
+                      ]
+                    },
+                    {
+                      "field": "priority",
+                      "filterType": "select",
+                      "label": "Priority",
+                      "options": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                      ]
+                    },
+                    {
+                      "field": "amount",
+                      "filterType": "number-range",
+                      "label": "Amount"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Order",
+                  "columns": [
+                    "orderNumber",
+                    "description",
+                    "amount",
+                    "status",
+                    "priority",
+                    "createdAt"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Review",
+                      "event": "REVIEW",
+                      "placement": "menu"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "fields": [
+                    {
+                      "field": "orderNumber",
+                      "label": "Order Number",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "description",
+                      "label": "Description",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "amount",
+                      "label": "Amount",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "priority",
+                      "label": "Priority",
+                      "inputType": "select",
+                      "values": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Create Order",
+                    "event": "SAVE",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "description",
+                    "amount",
+                    "status",
+                    "priority",
+                    "createdAt",
+                    "createdBy",
+                    "reviewedBy",
+                    "reviewedAt"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "page-header",
+                  "title": "Order Details",
+                  "actions": [
+                    {
+                      "label": "Start Review",
+                      "event": "REVIEW",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Close",
+                      "event": "CLOSE",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "reviewing",
+            "event": "REVIEW",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "description",
+                    "amount",
+                    "priority",
+                    "createdBy"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "page-header",
+                  "title": "Review Order",
+                  "subtitle": "Please review the order details and make a decision"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Approve",
+                    "event": "APPROVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Reject",
+                      "event": "REJECT",
+                      "actionType": "cancel",
+                      "variant": "danger"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "reviewing",
+            "to": "approving",
+            "event": "APPROVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation-dialog",
+                  "title": "Approve Order",
+                  "message": "Are you sure you want to approve this order?",
+                  "confirmLabel": "Approve",
+                  "cancelLabel": "Cancel",
+                  "confirmEvent": "CONFIRM_APPROVE",
+                  "cancelEvent": "CLOSE"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "reviewing",
+            "to": "rejecting",
+            "event": "REJECT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "confirmation-dialog",
+                  "title": "Reject Order",
+                  "message": "Are you sure you want to reject this order?",
+                  "confirmLabel": "Reject",
+                  "cancelLabel": "Cancel",
+                  "confirmEvent": "CONFIRM_REJECT",
+                  "cancelEvent": "CLOSE",
+                  "variant": "danger"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "approving",
+            "to": "browsing",
+            "event": "CONFIRM_APPROVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "approved",
+                  "reviewedAt": "@now",
+                  "reviewedBy": "@currentUser"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order approved successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "rejecting",
+            "to": "browsing",
+            "event": "CONFIRM_REJECT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "rejected",
+                  "reviewedAt": "@now",
+                  "reviewedBy": "@currentUser"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order rejected successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "persist",
+                "create",
+                "Order",
+                {
+                  "status": "pending",
+                  "createdAt": "@now",
+                  "createdBy": "@currentUser"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Order created successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "reviewing",
+            "event": "REVIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "description",
+                    "amount",
+                    "priority",
+                    "createdBy"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "page-header",
+                  "title": "Review Order",
+                  "subtitle": "Please review the order details and make a decision"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Approve",
+                    "event": "APPROVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Reject",
+                      "event": "REJECT",
+                      "actionType": "cancel",
+                      "variant": "danger"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "reviewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "approving",
+            "to": "reviewing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "description",
+                    "amount",
+                    "priority",
+                    "createdBy"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "page-header",
+                  "title": "Review Order",
+                  "subtitle": "Please review the order details and make a decision"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Approve",
+                    "event": "APPROVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Reject",
+                      "event": "REJECT",
+                      "actionType": "cancel",
+                      "variant": "danger"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "rejecting",
+            "to": "reviewing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "orderNumber",
+                    "description",
+                    "amount",
+                    "priority",
+                    "createdBy"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "page-header",
+                  "title": "Review Order",
+                  "subtitle": "Please review the order details and make a decision"
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Approve",
+                    "event": "APPROVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Reject",
+                      "event": "REJECT",
+                      "actionType": "cancel",
+                      "variant": "danger"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "OrderApprovalPage",
+      "path": "/orders",
+      "viewType": "list",
+      "primaryEntity": "Order",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "ApprovalWorkflow"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "ORDER_CREATED",
+    "ORDER_APPROVED",
+    "ORDER_REJECTED",
+    "ORDER_UNDER_REVIEW"
+  ],
+  "listens": [
+    "USER_PERMISSION_CHANGED"
+  ]
+}

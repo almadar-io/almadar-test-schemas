@@ -1,0 +1,801 @@
+{
+  "name": "AMA OS System Monitor",
+  "description": "Comprehensive test schema for Rust backend demonstrating full Closed Circuit pattern with OAL operators",
+  "version": "1.0.0",
+  "orbitals": [
+    {
+      "name": "System Dashboard",
+      "entity": {
+        "name": "SystemMetrics",
+        "singleton": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "cpuUsage", "type": "number", "default": 0 },
+          { "name": "memoryUsed", "type": "number", "default": 0 },
+          { "name": "memoryTotal", "type": "number", "default": 0 },
+          { "name": "memoryPercent", "type": "number", "default": 0 },
+          { "name": "uptime", "type": "number", "default": 0 },
+          { "name": "hostname", "type": "string", "default": "" },
+          { "name": "loadOne", "type": "number", "default": 0 },
+          { "name": "loadFive", "type": "number", "default": 0 },
+          { "name": "loadFifteen", "type": "number", "default": 0 },
+          { "name": "networkConnected", "type": "boolean", "default": false },
+          { "name": "lastUpdated", "type": "timestamp" },
+          { "name": "refreshCount", "type": "number", "default": 0 },
+          { "name": "alertThreshold", "type": "number", "default": 80 }
+        ]
+      },
+      "traits": [{
+        "name": "SystemWatcher",
+        "category": "interaction",
+        "linkedEntity": "SystemMetrics",
+        "emits": [
+          {
+            "event": "HIGH_CPU_ALERT",
+            "description": "Emitted when CPU usage exceeds threshold",
+            "scope": "external",
+            "payload": [
+              { "name": "cpuUsage", "type": "number" },
+              { "name": "threshold", "type": "number" }
+            ]
+          },
+          {
+            "event": "HIGH_MEMORY_ALERT",
+            "description": "Emitted when memory usage exceeds threshold",
+            "scope": "external",
+            "payload": [
+              { "name": "memoryPercent", "type": "number" },
+              { "name": "threshold", "type": "number" }
+            ]
+          },
+          {
+            "event": "METRICS_UPDATED",
+            "description": "Emitted after metrics refresh",
+            "scope": "external"
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "idle", "isInitial": true },
+            { "name": "monitoring" },
+            { "name": "alerting" },
+            { "name": "paused" }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Initialize System Monitor" },
+            { "key": "REFRESH", "name": "Refresh Metrics" },
+            { "key": "CHECK_ALERTS", "name": "Check Alert Conditions" },
+            { "key": "PAUSE", "name": "Pause Monitoring" },
+            { "key": "RESUME", "name": "Resume Monitoring" },
+            { "key": "CLEAR_ALERT", "name": "Clear Alert" },
+            { "key": "RESET", "name": "Reset Monitor" },
+            {
+              "key": "SET_THRESHOLD",
+              "name": "Set Alert Threshold",
+              "payload": [
+                { "name": "threshold", "type": "number", "required": true }
+              ]
+            }
+          ],
+          "transitions": [
+            {
+              "from": "idle",
+              "to": "monitoring",
+              "event": "INIT",
+              "effects": [
+                ["set", "@entity.hostname", ["oal/hostname"]],
+                ["set", "@entity.uptime", ["oal/uptime"]],
+                ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+                ["set", "@entity.networkConnected", ["oal/network-connected"]],
+                ["set", "@entity.lastUpdated", "@now"],
+                ["notify", "success", "System monitoring initialized"],
+                ["render-ui", "main", {
+                  "type": "page-header",
+                  "title": "System Dashboard",
+                  "actions": [
+                    { "label": "Refresh", "event": "REFRESH" },
+                    { "label": "Pause", "event": "PAUSE" }
+                  ]
+                }],
+                ["render-ui", "main", {
+                  "type": "stats",
+                  "items": [
+                    { "label": "CPU Usage", "value": "@entity.cpuUsage", "suffix": "%" },
+                    { "label": "Memory", "value": "@entity.memoryPercent", "suffix": "%" },
+                    { "label": "Uptime", "value": "@entity.uptime", "suffix": "s" },
+                    { "label": "Hostname", "value": "@entity.hostname" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "monitoring",
+              "event": "REFRESH",
+              "effects": [
+                ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+                ["set", "@entity.uptime", ["oal/uptime"]],
+                ["set", "@entity.networkConnected", ["oal/network-connected"]],
+                ["set", "@entity.refreshCount", ["+", "@entity.refreshCount", 1]],
+                ["set", "@entity.lastUpdated", "@now"],
+                ["emit", "METRICS_UPDATED", {
+                  "cpuUsage": "@entity.cpuUsage",
+                  "memoryPercent": "@entity.memoryPercent",
+                  "timestamp": "@now"
+                }]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "alerting",
+              "event": "CHECK_ALERTS",
+              "guard": [">", "@entity.cpuUsage", "@entity.alertThreshold"],
+              "effects": [
+                ["emit", "HIGH_CPU_ALERT", {
+                  "cpuUsage": "@entity.cpuUsage",
+                  "threshold": "@entity.alertThreshold"
+                }],
+                ["notify", "warning", ["str/concat", "CPU usage ", ["str/to-string", "@entity.cpuUsage"], "% exceeds threshold"]],
+                ["render-ui", "main", {
+                  "type": "card",
+                  "title": "Alert Active",
+                  "variant": "warning",
+                  "actions": [
+                    { "label": "Clear Alert", "event": "CLEAR_ALERT" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "monitoring",
+              "event": "CHECK_ALERTS",
+              "guard": ["<=", "@entity.cpuUsage", "@entity.alertThreshold"],
+              "effects": []
+            },
+            {
+              "from": "alerting",
+              "to": "monitoring",
+              "event": "CLEAR_ALERT",
+              "effects": [
+                ["notify", "info", "Alert cleared"],
+                ["render-ui", "main", {
+                  "type": "page-header",
+                  "title": "System Dashboard",
+                  "actions": [
+                    { "label": "Refresh", "event": "REFRESH" },
+                    { "label": "Pause", "event": "PAUSE" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "alerting",
+              "to": "alerting",
+              "event": "REFRESH",
+              "effects": [
+                ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+                ["set", "@entity.lastUpdated", "@now"]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "paused",
+              "event": "PAUSE",
+              "effects": [
+                ["notify", "info", "Monitoring paused"],
+                ["render-ui", "main", {
+                  "type": "card",
+                  "title": "Monitoring Paused",
+                  "actions": [
+                    { "label": "Resume", "event": "RESUME" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "paused",
+              "to": "monitoring",
+              "event": "RESUME",
+              "effects": [
+                ["notify", "success", "Monitoring resumed"],
+                ["emit", "REFRESH"]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "monitoring",
+              "event": "SET_THRESHOLD",
+              "effects": [
+                ["set", "@entity.alertThreshold", "@payload.threshold"],
+                ["notify", "info", ["str/concat", "Threshold set to ", ["str/to-string", "@payload.threshold"], "%"]]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "idle",
+              "event": "RESET",
+              "effects": [
+                ["set", "@entity.refreshCount", 0],
+                ["set", "@entity.cpuUsage", 0],
+                ["set", "@entity.memoryPercent", 0],
+                ["notify", "info", "Monitor reset"]
+              ]
+            },
+            {
+              "from": "alerting",
+              "to": "idle",
+              "event": "RESET",
+              "effects": [
+                ["notify", "warning", "Reset while alerting"]
+              ]
+            },
+            {
+              "from": "paused",
+              "to": "idle",
+              "event": "RESET",
+              "effects": [
+                ["notify", "info", "Reset from paused state"]
+              ]
+            }
+          ]
+        },
+        "ticks": [{
+          "name": "auto_refresh",
+          "interval": "30s",
+          "effects": [
+            ["emit", "REFRESH"]
+          ]
+        }]
+      }],
+      "pages": [{
+        "name": "DashboardPage",
+        "path": "/dashboard",
+        "viewType": "dashboard",
+        "primaryEntity": "SystemMetrics",
+        "isInitial": true,
+        "traits": [{ "ref": "SystemWatcher" }]
+      }]
+    },
+    {
+      "name": "Alert Manager",
+      "entity": {
+        "name": "AlertLog",
+        "collection": "alert_logs",
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "type", "type": "string", "required": true },
+          { "name": "message", "type": "string", "required": true },
+          { "name": "severity", "type": "enum", "values": ["info", "warning", "critical"], "default": "info" },
+          { "name": "acknowledged", "type": "boolean", "default": false },
+          { "name": "timestamp", "type": "timestamp" },
+          { "name": "value", "type": "number" },
+          { "name": "threshold", "type": "number" }
+        ]
+      },
+      "traits": [{
+        "name": "AlertHandler",
+        "category": "interaction",
+        "linkedEntity": "AlertLog",
+        "listens": [
+          {
+            "event": "HIGH_CPU_ALERT",
+            "triggers": "LOG_CPU_ALERT",
+            "scope": "external",
+            "description": "Handle CPU alerts from SystemWatcher"
+          },
+          {
+            "event": "HIGH_MEMORY_ALERT",
+            "triggers": "LOG_MEMORY_ALERT",
+            "scope": "external",
+            "description": "Handle memory alerts from SystemWatcher"
+          }
+        ],
+        "emits": [
+          {
+            "event": "ALERT_LOGGED",
+            "description": "Emitted when an alert is logged",
+            "scope": "external"
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "idle", "isInitial": true },
+            { "name": "ready" },
+            { "name": "processing" }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Initialize Alert Handler" },
+            {
+              "key": "LOG_CPU_ALERT",
+              "name": "Log CPU Alert",
+              "payload": [
+                { "name": "cpuUsage", "type": "number", "required": true },
+                { "name": "threshold", "type": "number", "required": true }
+              ]
+            },
+            {
+              "key": "LOG_MEMORY_ALERT",
+              "name": "Log Memory Alert",
+              "payload": [
+                { "name": "memoryPercent", "type": "number", "required": true },
+                { "name": "threshold", "type": "number", "required": true }
+              ]
+            },
+            {
+              "key": "ACKNOWLEDGE",
+              "name": "Acknowledge Alert",
+              "payload": [
+                { "name": "alertId", "type": "string", "required": true }
+              ]
+            },
+            { "key": "CLEAR_ALL", "name": "Clear All Alerts" },
+            { "key": "LIST", "name": "List Alerts" }
+          ],
+          "transitions": [
+            {
+              "from": "idle",
+              "to": "ready",
+              "event": "INIT",
+              "effects": [
+                ["fetch", "AlertLog"],
+                ["render-ui", "main", {
+                  "type": "page-header",
+                  "title": "Alert Manager",
+                  "actions": [
+                    { "label": "Clear All", "event": "CLEAR_ALL" }
+                  ]
+                }],
+                ["render-ui", "main", {
+                  "type": "entity-table",
+                  "entity": "AlertLog",
+                  "fieldNames": ["type", "message", "severity", "acknowledged", "timestamp"],
+                  "itemActions": [
+                    { "label": "Acknowledge", "event": "ACKNOWLEDGE" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "processing",
+              "event": "LOG_CPU_ALERT",
+              "effects": [
+                ["persist", "create", "AlertLog", {
+                  "id": ["str/concat", "alert-cpu-", ["str/to-string", "@now"]],
+                  "type": "cpu",
+                  "message": ["str/concat", "CPU usage ", ["str/to-string", "@payload.cpuUsage"], "% exceeded threshold"],
+                  "severity": "warning",
+                  "value": "@payload.cpuUsage",
+                  "threshold": "@payload.threshold",
+                  "timestamp": "@now"
+                }],
+                ["oal/notify", "CPU Alert", ["str/concat", "CPU at ", ["str/to-string", "@payload.cpuUsage"], "%"]],
+                ["emit", "ALERT_LOGGED", { "type": "cpu" }]
+              ]
+            },
+            {
+              "from": "processing",
+              "to": "ready",
+              "event": "LIST",
+              "effects": [
+                ["fetch", "AlertLog"],
+                ["render-ui", "main", {
+                  "type": "entity-table",
+                  "entity": "AlertLog",
+                  "fieldNames": ["type", "message", "severity", "acknowledged", "timestamp"]
+                }]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "processing",
+              "event": "LOG_MEMORY_ALERT",
+              "effects": [
+                ["persist", "create", "AlertLog", {
+                  "id": ["str/concat", "alert-mem-", ["str/to-string", "@now"]],
+                  "type": "memory",
+                  "message": ["str/concat", "Memory usage ", ["str/to-string", "@payload.memoryPercent"], "% exceeded threshold"],
+                  "severity": "warning",
+                  "value": "@payload.memoryPercent",
+                  "threshold": "@payload.threshold",
+                  "timestamp": "@now"
+                }],
+                ["oal/notify", "Memory Alert", ["str/concat", "Memory at ", ["str/to-string", "@payload.memoryPercent"], "%"]],
+                ["emit", "ALERT_LOGGED", { "type": "memory" }]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "ACKNOWLEDGE",
+              "effects": [
+                ["persist", "update", "AlertLog", "@payload.alertId", { "acknowledged": true }],
+                ["notify", "info", "Alert acknowledged"],
+                ["fetch", "AlertLog"]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "CLEAR_ALL",
+              "effects": [
+                ["notify", "info", "All alerts cleared"]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "LIST",
+              "effects": [
+                ["fetch", "AlertLog"]
+              ]
+            }
+          ]
+        }
+      }],
+      "pages": [{
+        "name": "AlertsPage",
+        "path": "/alerts",
+        "viewType": "list",
+        "primaryEntity": "AlertLog",
+        "traits": [{ "ref": "AlertHandler" }]
+      }]
+    },
+    {
+      "name": "Power Manager",
+      "entity": {
+        "name": "PowerState",
+        "singleton": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "batteryPresent", "type": "boolean", "default": false },
+          { "name": "batteryPercent", "type": "number", "default": 100 },
+          { "name": "batteryStatus", "type": "string", "default": "unknown" },
+          { "name": "onAcPower", "type": "boolean", "default": true },
+          { "name": "powerMode", "type": "enum", "values": ["normal", "balanced", "power_saver"], "default": "normal" },
+          { "name": "brightnessLevel", "type": "number", "default": 100 }
+        ]
+      },
+      "traits": [{
+        "name": "PowerController",
+        "category": "interaction",
+        "linkedEntity": "PowerState",
+        "listens": [
+          {
+            "event": "HIGH_CPU_ALERT",
+            "triggers": "ENABLE_POWER_SAVER",
+            "scope": "external",
+            "guard": ["=", "@entity.powerMode", "normal"],
+            "description": "Switch to power saver mode when CPU is high"
+          }
+        ],
+        "emits": [
+          {
+            "event": "POWER_MODE_CHANGED",
+            "description": "Emitted when power mode changes",
+            "scope": "external",
+            "payload": [
+              { "name": "oldMode", "type": "string" },
+              { "name": "newMode", "type": "string" }
+            ]
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "idle", "isInitial": true },
+            { "name": "normal" },
+            { "name": "balanced" },
+            { "name": "power_saver" }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Initialize Power Manager" },
+            { "key": "REFRESH_BATTERY", "name": "Refresh Battery Status" },
+            { "key": "SET_NORMAL", "name": "Set Normal Mode" },
+            { "key": "SET_BALANCED", "name": "Set Balanced Mode" },
+            { "key": "ENABLE_POWER_SAVER", "name": "Enable Power Saver" },
+            {
+              "key": "SET_BRIGHTNESS",
+              "name": "Set Brightness",
+              "payload": [
+                { "name": "level", "type": "number", "required": true }
+              ]
+            }
+          ],
+          "transitions": [
+            {
+              "from": "idle",
+              "to": "normal",
+              "event": "INIT",
+              "effects": [
+                ["set", "@entity.onAcPower", ["oal/ac-power"]],
+                ["set", "@entity.powerMode", "normal"],
+                ["render-ui", "main", {
+                  "type": "page-header",
+                  "title": "Power Manager",
+                  "actions": [
+                    { "label": "Refresh", "event": "REFRESH_BATTERY" }
+                  ]
+                }],
+                ["render-ui", "main", {
+                  "type": "stats",
+                  "items": [
+                    { "label": "Battery", "value": "@entity.batteryPercent", "suffix": "%" },
+                    { "label": "Status", "value": "@entity.batteryStatus" },
+                    { "label": "AC Power", "value": "@entity.onAcPower" },
+                    { "label": "Mode", "value": "@entity.powerMode" }
+                  ]
+                }],
+                ["render-ui", "main", {
+                  "type": "card",
+                  "title": "Power Modes",
+                  "actions": [
+                    { "label": "Normal", "event": "SET_NORMAL" },
+                    { "label": "Balanced", "event": "SET_BALANCED" },
+                    { "label": "Power Saver", "event": "ENABLE_POWER_SAVER" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "normal",
+              "event": "REFRESH_BATTERY",
+              "effects": [
+                ["set", "@entity.onAcPower", ["oal/ac-power"]]
+              ]
+            },
+            {
+              "from": "balanced",
+              "to": "balanced",
+              "event": "REFRESH_BATTERY",
+              "effects": [
+                ["set", "@entity.onAcPower", ["oal/ac-power"]]
+              ]
+            },
+            {
+              "from": "power_saver",
+              "to": "power_saver",
+              "event": "REFRESH_BATTERY",
+              "effects": [
+                ["set", "@entity.onAcPower", ["oal/ac-power"]]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "balanced",
+              "event": "SET_BALANCED",
+              "effects": [
+                ["emit", "POWER_MODE_CHANGED", { "oldMode": "normal", "newMode": "balanced" }],
+                ["set", "@entity.powerMode", "balanced"],
+                ["set", "@entity.brightnessLevel", 80],
+                ["notify", "info", "Switched to balanced mode"]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "power_saver",
+              "event": "ENABLE_POWER_SAVER",
+              "effects": [
+                ["emit", "POWER_MODE_CHANGED", { "oldMode": "normal", "newMode": "power_saver" }],
+                ["set", "@entity.powerMode", "power_saver"],
+                ["set", "@entity.brightnessLevel", 50],
+                ["notify", "warning", "Power saver enabled"]
+              ]
+            },
+            {
+              "from": "balanced",
+              "to": "normal",
+              "event": "SET_NORMAL",
+              "effects": [
+                ["emit", "POWER_MODE_CHANGED", { "oldMode": "balanced", "newMode": "normal" }],
+                ["set", "@entity.powerMode", "normal"],
+                ["set", "@entity.brightnessLevel", 100],
+                ["notify", "info", "Switched to normal mode"]
+              ]
+            },
+            {
+              "from": "balanced",
+              "to": "power_saver",
+              "event": "ENABLE_POWER_SAVER",
+              "effects": [
+                ["emit", "POWER_MODE_CHANGED", { "oldMode": "balanced", "newMode": "power_saver" }],
+                ["set", "@entity.powerMode", "power_saver"],
+                ["set", "@entity.brightnessLevel", 50],
+                ["notify", "warning", "Power saver enabled"]
+              ]
+            },
+            {
+              "from": "power_saver",
+              "to": "normal",
+              "event": "SET_NORMAL",
+              "effects": [
+                ["emit", "POWER_MODE_CHANGED", { "oldMode": "power_saver", "newMode": "normal" }],
+                ["set", "@entity.powerMode", "normal"],
+                ["set", "@entity.brightnessLevel", 100],
+                ["notify", "info", "Switched to normal mode"]
+              ]
+            },
+            {
+              "from": "power_saver",
+              "to": "balanced",
+              "event": "SET_BALANCED",
+              "effects": [
+                ["emit", "POWER_MODE_CHANGED", { "oldMode": "power_saver", "newMode": "balanced" }],
+                ["set", "@entity.powerMode", "balanced"],
+                ["set", "@entity.brightnessLevel", 80],
+                ["notify", "info", "Switched to balanced mode"]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "normal",
+              "event": "SET_BRIGHTNESS",
+              "effects": [
+                ["set", "@entity.brightnessLevel", "@payload.level"]
+              ]
+            },
+            {
+              "from": "balanced",
+              "to": "balanced",
+              "event": "SET_BRIGHTNESS",
+              "effects": [
+                ["set", "@entity.brightnessLevel", ["math/min", "@payload.level", 80]]
+              ]
+            },
+            {
+              "from": "power_saver",
+              "to": "power_saver",
+              "event": "SET_BRIGHTNESS",
+              "effects": [
+                ["set", "@entity.brightnessLevel", ["math/min", "@payload.level", 50]]
+              ]
+            }
+          ]
+        }
+      }],
+      "pages": [{
+        "name": "PowerPage",
+        "path": "/power",
+        "viewType": "detail",
+        "primaryEntity": "PowerState",
+        "traits": [{ "ref": "PowerController" }]
+      }]
+    },
+    {
+      "name": "Network Monitor",
+      "entity": {
+        "name": "NetworkStatus",
+        "singleton": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "connected", "type": "boolean", "default": false },
+          { "name": "defaultGateway", "type": "string", "default": "" },
+          { "name": "interfaceCount", "type": "number", "default": 0 },
+          { "name": "lastCheck", "type": "timestamp" }
+        ]
+      },
+      "traits": [{
+        "name": "NetworkWatcher",
+        "category": "interaction",
+        "linkedEntity": "NetworkStatus",
+        "emits": [
+          {
+            "event": "NETWORK_DOWN",
+            "description": "Network connectivity lost",
+            "scope": "external"
+          },
+          {
+            "event": "NETWORK_UP",
+            "description": "Network connectivity restored",
+            "scope": "external"
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "unknown", "isInitial": true },
+            { "name": "connected" },
+            { "name": "disconnected" }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Initialize Network Monitor" },
+            { "key": "CHECK", "name": "Check Connectivity" },
+            { "key": "CONNECTED", "name": "Network Connected" },
+            { "key": "DISCONNECTED", "name": "Network Disconnected" }
+          ],
+          "transitions": [
+            {
+              "from": "unknown",
+              "to": "connected",
+              "event": "INIT",
+              "guard": ["oal/network-connected"],
+              "effects": [
+                ["set", "@entity.connected", true],
+                ["set", "@entity.defaultGateway", ["oal/default-gateway"]],
+                ["set", "@entity.lastCheck", "@now"],
+                ["render-ui", "main", {
+                  "type": "stats",
+                  "items": [
+                    { "label": "Status", "value": "Connected" },
+                    { "label": "Gateway", "value": "@entity.defaultGateway" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "unknown",
+              "to": "disconnected",
+              "event": "INIT",
+              "guard": ["not", ["oal/network-connected"]],
+              "effects": [
+                ["set", "@entity.connected", false],
+                ["set", "@entity.lastCheck", "@now"],
+                ["notify", "warning", "Network not connected"],
+                ["render-ui", "main", {
+                  "type": "card",
+                  "title": "Network Disconnected",
+                  "variant": "warning"
+                }]
+              ]
+            },
+            {
+              "from": "connected",
+              "to": "connected",
+              "event": "CHECK",
+              "guard": ["oal/network-connected"],
+              "effects": [
+                ["set", "@entity.lastCheck", "@now"]
+              ]
+            },
+            {
+              "from": "connected",
+              "to": "disconnected",
+              "event": "DISCONNECTED",
+              "effects": [
+                ["set", "@entity.connected", false],
+                ["emit", "NETWORK_DOWN", {}],
+                ["oal/notify", "Network Lost", "Network connectivity has been lost"],
+                ["notify", "error", "Network connection lost"]
+              ]
+            },
+            {
+              "from": "disconnected",
+              "to": "connected",
+              "event": "CONNECTED",
+              "effects": [
+                ["set", "@entity.connected", true],
+                ["set", "@entity.defaultGateway", ["oal/default-gateway"]],
+                ["emit", "NETWORK_UP", {}],
+                ["oal/notify", "Network Restored", "Network connectivity has been restored"],
+                ["notify", "success", "Network connection restored"]
+              ]
+            },
+            {
+              "from": "disconnected",
+              "to": "disconnected",
+              "event": "CHECK",
+              "guard": ["not", ["oal/network-connected"]],
+              "effects": [
+                ["set", "@entity.lastCheck", "@now"]
+              ]
+            }
+          ]
+        },
+        "ticks": [{
+          "name": "connectivity_check",
+          "interval": "60s",
+          "effects": [
+            ["emit", "CHECK"]
+          ]
+        }]
+      }],
+      "pages": [{
+        "name": "NetworkPage",
+        "path": "/network",
+        "viewType": "detail",
+        "primaryEntity": "NetworkStatus",
+        "traits": [{ "ref": "NetworkWatcher" }]
+      }]
+    }
+  ]
+}

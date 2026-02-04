@@ -1,0 +1,1205 @@
+{
+  "name": "ProjectManagementSuite",
+  "version": "2.1.0",
+  "description": "Enterprise project management application with tasks, sprints, teams, and reporting",
+  "orbitals": [
+    {
+      "name": "ProjectOrbital",
+      "entity": {
+        "name": "Project",
+        "persistence": { "collection": "projects" },
+        "fields": [
+          { "name": "name", "type": "string", "required": true },
+          { "name": "description", "type": "string" },
+          { "name": "status", "type": "enum", "values": ["planning", "active", "on_hold", "completed", "archived"], "default": "planning" },
+          { "name": "startDate", "type": "date" },
+          { "name": "endDate", "type": "date" },
+          { "name": "budget", "type": "number", "default": 0 },
+          { "name": "spentBudget", "type": "number", "default": 0 },
+          { "name": "ownerId", "type": "string", "required": true },
+          { "name": "teamIds", "type": "array" },
+          { "name": "visibility", "type": "enum", "values": ["private", "team", "public"], "default": "team" },
+          { "name": "tags", "type": "array" },
+          { "name": "createdAt", "type": "timestamp" },
+          { "name": "updatedAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "ProjectInteraction" }, { "ref": "ProjectLifecycle" }],
+      "pages": [
+        { "name": "ProjectsPage", "path": "/projects", "traits": [{ "ref": "ProjectInteraction" }] },
+        { "name": "ProjectDetailPage", "path": "/projects/:id", "traits": [{ "ref": "ProjectInteraction" }] }
+      ],
+      "emits": ["PROJECT_CREATED", "PROJECT_UPDATED", "PROJECT_ARCHIVED", "PROJECT_COMPLETED"],
+      "listens": [
+        { "event": "SPRINT_COMPLETED", "dispatch": "CHECK_PROJECT_COMPLETION" }
+      ]
+    },
+    {
+      "name": "SprintOrbital",
+      "entity": {
+        "name": "Sprint",
+        "persistence": { "collection": "sprints" },
+        "fields": [
+          { "name": "name", "type": "string", "required": true },
+          { "name": "projectId", "type": "string", "required": true },
+          { "name": "goal", "type": "string" },
+          { "name": "status", "type": "enum", "values": ["planning", "active", "review", "completed"], "default": "planning" },
+          { "name": "startDate", "type": "date", "required": true },
+          { "name": "endDate", "type": "date", "required": true },
+          { "name": "velocity", "type": "number", "default": 0 },
+          { "name": "plannedPoints", "type": "number", "default": 0 },
+          { "name": "completedPoints", "type": "number", "default": 0 },
+          { "name": "createdAt", "type": "timestamp" },
+          { "name": "updatedAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "SprintInteraction" }, { "ref": "SprintLifecycle" }],
+      "pages": [
+        { "name": "SprintsPage", "path": "/projects/:projectId/sprints", "traits": [{ "ref": "SprintInteraction" }] }
+      ],
+      "emits": ["SPRINT_STARTED", "SPRINT_COMPLETED", "SPRINT_VELOCITY_UPDATED"],
+      "listens": [
+        { "event": "TASK_COMPLETED", "dispatch": "UPDATE_SPRINT_PROGRESS" }
+      ]
+    },
+    {
+      "name": "TaskOrbital",
+      "entity": {
+        "name": "Task",
+        "persistence": { "collection": "tasks" },
+        "fields": [
+          { "name": "title", "type": "string", "required": true },
+          { "name": "description", "type": "string" },
+          { "name": "status", "type": "enum", "values": ["backlog", "todo", "in_progress", "in_review", "done"], "default": "backlog" },
+          { "name": "priority", "type": "enum", "values": ["low", "medium", "high", "critical"], "default": "medium" },
+          { "name": "type", "type": "enum", "values": ["feature", "bug", "chore", "spike"], "default": "feature" },
+          { "name": "storyPoints", "type": "number" },
+          { "name": "projectId", "type": "string", "required": true },
+          { "name": "sprintId", "type": "string" },
+          { "name": "assigneeId", "type": "string" },
+          { "name": "reporterId", "type": "string", "required": true },
+          { "name": "labelIds", "type": "array" },
+          { "name": "dueDate", "type": "date" },
+          { "name": "estimatedHours", "type": "number" },
+          { "name": "loggedHours", "type": "number", "default": 0 },
+          { "name": "blockedBy", "type": "array" },
+          { "name": "blocks", "type": "array" },
+          { "name": "attachments", "type": "array" },
+          { "name": "createdAt", "type": "timestamp" },
+          { "name": "updatedAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "TaskInteraction" }, { "ref": "TaskWorkflow" }],
+      "pages": [
+        { "name": "TaskBoardPage", "path": "/projects/:projectId/board", "traits": [{ "ref": "TaskInteraction" }] },
+        { "name": "TaskListPage", "path": "/projects/:projectId/tasks", "traits": [{ "ref": "TaskInteraction" }] },
+        { "name": "TaskDetailPage", "path": "/tasks/:id", "traits": [{ "ref": "TaskInteraction" }] }
+      ],
+      "emits": ["TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "TASK_COMPLETED", "TASK_BLOCKED"],
+      "listens": []
+    },
+    {
+      "name": "UserOrbital",
+      "entity": {
+        "name": "User",
+        "persistence": { "collection": "users" },
+        "fields": [
+          { "name": "email", "type": "string", "required": true },
+          { "name": "displayName", "type": "string", "required": true },
+          { "name": "avatarUrl", "type": "string" },
+          { "name": "role", "type": "enum", "values": ["admin", "manager", "developer", "viewer"], "default": "developer" },
+          { "name": "teamIds", "type": "array" },
+          { "name": "skills", "type": "array" },
+          { "name": "capacity", "type": "number", "default": 40 },
+          { "name": "timezone", "type": "string", "default": "UTC" },
+          { "name": "notificationPrefs", "type": "object" },
+          { "name": "lastActiveAt", "type": "timestamp" },
+          { "name": "createdAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "UserInteraction" }, { "ref": "UserProfile" }],
+      "pages": [
+        { "name": "TeamPage", "path": "/team", "traits": [{ "ref": "UserInteraction" }] },
+        { "name": "ProfilePage", "path": "/profile/:id", "traits": [{ "ref": "UserProfile" }] }
+      ],
+      "emits": ["USER_UPDATED", "USER_ROLE_CHANGED"],
+      "listens": []
+    },
+    {
+      "name": "CommentOrbital",
+      "entity": {
+        "name": "Comment",
+        "persistence": { "collection": "comments" },
+        "fields": [
+          { "name": "content", "type": "string", "required": true },
+          { "name": "taskId", "type": "string", "required": true },
+          { "name": "authorId", "type": "string", "required": true },
+          { "name": "parentId", "type": "string" },
+          { "name": "mentions", "type": "array" },
+          { "name": "attachments", "type": "array" },
+          { "name": "reactions", "type": "object" },
+          { "name": "editedAt", "type": "timestamp" },
+          { "name": "createdAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "CommentInteraction" }],
+      "pages": [],
+      "emits": ["COMMENT_ADDED", "COMMENT_EDITED", "USER_MENTIONED"],
+      "listens": []
+    },
+    {
+      "name": "LabelOrbital",
+      "entity": {
+        "name": "Label",
+        "persistence": { "collection": "labels" },
+        "fields": [
+          { "name": "name", "type": "string", "required": true },
+          { "name": "color", "type": "string", "required": true },
+          { "name": "projectId", "type": "string", "required": true },
+          { "name": "description", "type": "string" },
+          { "name": "createdAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "LabelInteraction" }],
+      "pages": [
+        { "name": "LabelsPage", "path": "/projects/:projectId/labels", "traits": [{ "ref": "LabelInteraction" }] }
+      ],
+      "emits": ["LABEL_CREATED", "LABEL_UPDATED", "LABEL_DELETED"],
+      "listens": []
+    },
+    {
+      "name": "TimeEntryOrbital",
+      "entity": {
+        "name": "TimeEntry",
+        "persistence": { "collection": "time_entries" },
+        "fields": [
+          { "name": "taskId", "type": "string", "required": true },
+          { "name": "userId", "type": "string", "required": true },
+          { "name": "hours", "type": "number", "required": true },
+          { "name": "description", "type": "string" },
+          { "name": "date", "type": "date", "required": true },
+          { "name": "billable", "type": "boolean", "default": true },
+          { "name": "createdAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "TimeEntryInteraction" }],
+      "pages": [
+        { "name": "TimeTrackingPage", "path": "/timesheet", "traits": [{ "ref": "TimeEntryInteraction" }] }
+      ],
+      "emits": ["TIME_LOGGED", "TIME_UPDATED"],
+      "listens": []
+    },
+    {
+      "name": "NotificationOrbital",
+      "entity": {
+        "name": "Notification",
+        "persistence": { "collection": "notifications" },
+        "fields": [
+          { "name": "userId", "type": "string", "required": true },
+          { "name": "type", "type": "enum", "values": ["mention", "assignment", "comment", "status_change", "due_date", "sprint_start", "sprint_end"], "required": true },
+          { "name": "title", "type": "string", "required": true },
+          { "name": "message", "type": "string" },
+          { "name": "entityType", "type": "string" },
+          { "name": "entityId", "type": "string" },
+          { "name": "read", "type": "boolean", "default": false },
+          { "name": "actionUrl", "type": "string" },
+          { "name": "createdAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "NotificationInteraction" }],
+      "pages": [],
+      "emits": [],
+      "listens": [
+        { "event": "USER_MENTIONED", "dispatch": "CREATE_MENTION_NOTIFICATION" },
+        { "event": "TASK_ASSIGNED", "dispatch": "CREATE_ASSIGNMENT_NOTIFICATION" },
+        { "event": "COMMENT_ADDED", "dispatch": "CREATE_COMMENT_NOTIFICATION" }
+      ]
+    },
+    {
+      "name": "ReportOrbital",
+      "entity": {
+        "name": "Report",
+        "persistence": { "runtime": true },
+        "fields": [
+          { "name": "type", "type": "enum", "values": ["velocity", "burndown", "burnup", "cumulative_flow", "cycle_time"], "required": true },
+          { "name": "projectId", "type": "string" },
+          { "name": "sprintId", "type": "string" },
+          { "name": "dateRange", "type": "object" },
+          { "name": "data", "type": "object" },
+          { "name": "generatedAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "ReportInteraction" }],
+      "pages": [
+        { "name": "ReportsPage", "path": "/reports", "traits": [{ "ref": "ReportInteraction" }] },
+        { "name": "VelocityReportPage", "path": "/reports/velocity", "traits": [{ "ref": "ReportInteraction" }] },
+        { "name": "BurndownPage", "path": "/reports/burndown", "traits": [{ "ref": "ReportInteraction" }] }
+      ],
+      "emits": [],
+      "listens": []
+    },
+    {
+      "name": "IntegrationOrbital",
+      "entity": {
+        "name": "Integration",
+        "persistence": { "collection": "integrations" },
+        "fields": [
+          { "name": "projectId", "type": "string", "required": true },
+          { "name": "type", "type": "enum", "values": ["github", "gitlab", "slack", "jira", "confluence", "figma"], "required": true },
+          { "name": "status", "type": "enum", "values": ["active", "inactive", "error"], "default": "inactive" },
+          { "name": "config", "type": "object" },
+          { "name": "credentials", "type": "object" },
+          { "name": "lastSyncAt", "type": "timestamp" },
+          { "name": "errorMessage", "type": "string" },
+          { "name": "createdAt", "type": "timestamp" }
+        ]
+      },
+      "traits": [{ "ref": "IntegrationInteraction" }],
+      "pages": [
+        { "name": "IntegrationsPage", "path": "/projects/:projectId/integrations", "traits": [{ "ref": "IntegrationInteraction" }] }
+      ],
+      "emits": ["INTEGRATION_SYNCED", "INTEGRATION_ERROR"],
+      "listens": []
+    }
+  ],
+  "traits": [
+    {
+      "name": "ProjectInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          { "name": "browsing", "isInitial": true },
+          { "name": "creating" },
+          { "name": "viewing" },
+          { "name": "editing" },
+          { "name": "archiving" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CREATE", "name": "Create Project" },
+          { "key": "VIEW", "name": "View Project" },
+          { "key": "EDIT", "name": "Edit Project" },
+          { "key": "ARCHIVE", "name": "Archive Project" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" },
+          { "key": "CONFIRM", "name": "Confirm" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Projects",
+                "actions": [
+                  { "label": "New Project", "event": "CREATE", "variant": "primary" }
+                ]
+              }],
+              ["render-ui", "main", {
+                "type": "entity-cards",
+                "entity": "Project",
+                "fieldNames": ["name", "status", "startDate", "endDate"],
+                "itemActions": [
+                  { "label": "View", "event": "VIEW" },
+                  { "label": "Edit", "event": "EDIT" },
+                  { "label": "Archive", "event": "ARCHIVE", "variant": "destructive" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Project",
+                "title": "Create Project",
+                "fields": ["name", "description", "startDate", "endDate", "budget", "visibility"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              ["emit", "PROJECT_CREATED", "@payload"],
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              ["render-ui", "drawer", {
+                "type": "entity-detail",
+                "entity": "Project",
+                "fieldNames": ["name", "description", "status", "startDate", "endDate", "budget", "spentBudget"],
+                "headerActions": [
+                  { "label": "Edit", "event": "EDIT" },
+                  { "label": "Close", "event": "CANCEL" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "drawer", null]]
+          },
+          {
+            "from": ["browsing", "viewing"],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Project",
+                "title": "Edit Project",
+                "fields": ["name", "description", "status", "startDate", "endDate", "budget", "visibility"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              ["emit", "PROJECT_UPDATED", "@payload"],
+              ["render-ui", "modal", null],
+              ["render-ui", "drawer", null]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          },
+          {
+            "from": "browsing",
+            "to": "archiving",
+            "event": "ARCHIVE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "confirmation",
+                "title": "Archive Project",
+                "message": "Are you sure you want to archive this project? All associated sprints and tasks will be archived.",
+                "onConfirm": "CONFIRM",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "archiving",
+            "to": "browsing",
+            "event": "CONFIRM",
+            "effects": [
+              ["set", "@entity.status", "archived"],
+              ["emit", "PROJECT_ARCHIVED", "@entity"],
+              ["render-ui", "modal", null]
+            ]
+          },
+          {
+            "from": "archiving",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectLifecycle",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          { "name": "planning", "isInitial": true },
+          { "name": "active" },
+          { "name": "on_hold" },
+          { "name": "completed" },
+          { "name": "archived" }
+        ],
+        "events": [
+          { "key": "START", "name": "Start Project" },
+          { "key": "PAUSE", "name": "Pause Project" },
+          { "key": "RESUME", "name": "Resume Project" },
+          { "key": "COMPLETE", "name": "Complete Project" },
+          { "key": "ARCHIVE", "name": "Archive Project" },
+          { "key": "CHECK_PROJECT_COMPLETION", "name": "Check Completion" }
+        ],
+        "transitions": [
+          {
+            "from": "planning",
+            "to": "active",
+            "event": "START",
+            "effects": [
+              ["set", "@entity.status", "active"],
+              ["emit", "PROJECT_UPDATED", "@entity"]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "on_hold",
+            "event": "PAUSE",
+            "effects": [
+              ["set", "@entity.status", "on_hold"],
+              ["emit", "PROJECT_UPDATED", "@entity"]
+            ]
+          },
+          {
+            "from": "on_hold",
+            "to": "active",
+            "event": "RESUME",
+            "effects": [
+              ["set", "@entity.status", "active"],
+              ["emit", "PROJECT_UPDATED", "@entity"]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "completed",
+            "event": "COMPLETE",
+            "effects": [
+              ["set", "@entity.status", "completed"],
+              ["emit", "PROJECT_COMPLETED", "@entity"]
+            ]
+          },
+          {
+            "from": ["planning", "active", "on_hold", "completed"],
+            "to": "archived",
+            "event": "ARCHIVE",
+            "effects": [
+              ["set", "@entity.status", "archived"],
+              ["emit", "PROJECT_ARCHIVED", "@entity"]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "SprintInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          { "name": "browsing", "isInitial": true },
+          { "name": "creating" },
+          { "name": "viewing" },
+          { "name": "editing" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CREATE", "name": "Create Sprint" },
+          { "key": "VIEW", "name": "View Sprint" },
+          { "key": "EDIT", "name": "Edit Sprint" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Sprints",
+                "actions": [{ "label": "New Sprint", "event": "CREATE", "variant": "primary" }]
+              }],
+              ["render-ui", "main", {
+                "type": "entity-table",
+                "entity": "Sprint",
+                "columns": ["name", "status", "startDate", "endDate", "velocity"],
+                "itemActions": [
+                  { "label": "View", "event": "VIEW" },
+                  { "label": "Edit", "event": "EDIT" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Sprint",
+                "title": "Create Sprint",
+                "fields": ["name", "goal", "startDate", "endDate", "plannedPoints"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [["emit", "SPRINT_CREATED", "@payload"], ["render-ui", "modal", null]]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              ["render-ui", "drawer", {
+                "type": "entity-detail",
+                "entity": "Sprint",
+                "fieldNames": ["name", "goal", "status", "startDate", "endDate", "plannedPoints", "completedPoints", "velocity"],
+                "headerActions": [{ "label": "Edit", "event": "EDIT" }, { "label": "Close", "event": "CANCEL" }]
+              }]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "drawer", null]]
+          },
+          {
+            "from": ["browsing", "viewing"],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Sprint",
+                "title": "Edit Sprint",
+                "fields": ["name", "goal", "status", "startDate", "endDate", "plannedPoints"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [["emit", "SPRINT_UPDATED", "@payload"], ["render-ui", "modal", null], ["render-ui", "drawer", null]]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "SprintLifecycle",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          { "name": "planning", "isInitial": true },
+          { "name": "active" },
+          { "name": "review" },
+          { "name": "completed" }
+        ],
+        "events": [
+          { "key": "START_SPRINT", "name": "Start Sprint" },
+          { "key": "END_SPRINT", "name": "End Sprint" },
+          { "key": "COMPLETE_REVIEW", "name": "Complete Review" },
+          { "key": "UPDATE_SPRINT_PROGRESS", "name": "Update Progress" }
+        ],
+        "transitions": [
+          {
+            "from": "planning",
+            "to": "active",
+            "event": "START_SPRINT",
+            "effects": [
+              ["set", "@entity.status", "active"],
+              ["emit", "SPRINT_STARTED", "@entity"]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "review",
+            "event": "END_SPRINT",
+            "effects": [["set", "@entity.status", "review"]]
+          },
+          {
+            "from": "review",
+            "to": "completed",
+            "event": "COMPLETE_REVIEW",
+            "effects": [
+              ["set", "@entity.status", "completed"],
+              ["emit", "SPRINT_COMPLETED", "@entity"]
+            ]
+          },
+          {
+            "from": "active",
+            "to": "active",
+            "event": "UPDATE_SPRINT_PROGRESS",
+            "effects": [
+              ["increment", "@entity.completedPoints", "@payload.points"],
+              ["emit", "SPRINT_VELOCITY_UPDATED", "@entity"]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          { "name": "browsing", "isInitial": true },
+          { "name": "creating" },
+          { "name": "viewing" },
+          { "name": "editing" },
+          { "name": "assigning" },
+          { "name": "deleting" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CREATE", "name": "Create Task" },
+          { "key": "VIEW", "name": "View Task" },
+          { "key": "EDIT", "name": "Edit Task" },
+          { "key": "ASSIGN", "name": "Assign Task" },
+          { "key": "DELETE", "name": "Delete Task" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" },
+          { "key": "CONFIRM", "name": "Confirm" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Tasks",
+                "actions": [{ "label": "New Task", "event": "CREATE", "variant": "primary" }]
+              }],
+              ["render-ui", "main", {
+                "type": "entity-table",
+                "entity": "Task",
+                "columns": ["title", "status", "priority", "type", "assigneeId", "dueDate"],
+                "itemActions": [
+                  { "label": "View", "event": "VIEW" },
+                  { "label": "Edit", "event": "EDIT" },
+                  { "label": "Assign", "event": "ASSIGN" },
+                  { "label": "Delete", "event": "DELETE", "variant": "destructive" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Task",
+                "title": "Create Task",
+                "fields": ["title", "description", "type", "priority", "storyPoints", "dueDate", "estimatedHours"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [["emit", "TASK_CREATED", "@payload"], ["render-ui", "modal", null]]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              ["render-ui", "drawer", {
+                "type": "entity-detail",
+                "entity": "Task",
+                "fieldNames": ["title", "description", "status", "priority", "type", "storyPoints", "assigneeId", "dueDate", "estimatedHours", "loggedHours"],
+                "headerActions": [
+                  { "label": "Edit", "event": "EDIT" },
+                  { "label": "Assign", "event": "ASSIGN" },
+                  { "label": "Close", "event": "CANCEL" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "drawer", null]]
+          },
+          {
+            "from": ["browsing", "viewing"],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Task",
+                "title": "Edit Task",
+                "fields": ["title", "description", "status", "type", "priority", "storyPoints", "dueDate", "estimatedHours"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [["emit", "TASK_UPDATED", "@payload"], ["render-ui", "modal", null], ["render-ui", "drawer", null]]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          },
+          {
+            "from": ["browsing", "viewing"],
+            "to": "assigning",
+            "event": "ASSIGN",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "Task",
+                "title": "Assign Task",
+                "fields": ["assigneeId"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "assigning",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [["emit", "TASK_ASSIGNED", "@payload"], ["render-ui", "modal", null], ["render-ui", "drawer", null]]
+          },
+          {
+            "from": "assigning",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          },
+          {
+            "from": "browsing",
+            "to": "deleting",
+            "event": "DELETE",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "confirmation",
+                "title": "Delete Task",
+                "message": "Are you sure you want to delete this task? This action cannot be undone.",
+                "onConfirm": "CONFIRM",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CONFIRM",
+            "effects": [["emit", "TASK_DELETED", "@entity"], ["render-ui", "modal", null]]
+          },
+          {
+            "from": "deleting",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskWorkflow",
+      "category": "integration",
+      "stateMachine": {
+        "states": [
+          { "name": "backlog", "isInitial": true },
+          { "name": "todo" },
+          { "name": "in_progress" },
+          { "name": "in_review" },
+          { "name": "done" }
+        ],
+        "events": [
+          { "key": "MOVE_TO_TODO", "name": "Move to Todo" },
+          { "key": "START_WORK", "name": "Start Work" },
+          { "key": "SUBMIT_FOR_REVIEW", "name": "Submit for Review" },
+          { "key": "APPROVE", "name": "Approve" },
+          { "key": "REQUEST_CHANGES", "name": "Request Changes" },
+          { "key": "REOPEN", "name": "Reopen" }
+        ],
+        "transitions": [
+          {
+            "from": "backlog",
+            "to": "todo",
+            "event": "MOVE_TO_TODO",
+            "effects": [["set", "@entity.status", "todo"], ["emit", "TASK_UPDATED", "@entity"]]
+          },
+          {
+            "from": "todo",
+            "to": "in_progress",
+            "event": "START_WORK",
+            "effects": [["set", "@entity.status", "in_progress"], ["emit", "TASK_UPDATED", "@entity"]]
+          },
+          {
+            "from": "in_progress",
+            "to": "in_review",
+            "event": "SUBMIT_FOR_REVIEW",
+            "effects": [["set", "@entity.status", "in_review"], ["emit", "TASK_UPDATED", "@entity"]]
+          },
+          {
+            "from": "in_review",
+            "to": "done",
+            "event": "APPROVE",
+            "effects": [["set", "@entity.status", "done"], ["emit", "TASK_COMPLETED", "@entity"]]
+          },
+          {
+            "from": "in_review",
+            "to": "in_progress",
+            "event": "REQUEST_CHANGES",
+            "effects": [["set", "@entity.status", "in_progress"], ["emit", "TASK_UPDATED", "@entity"]]
+          },
+          {
+            "from": "done",
+            "to": "todo",
+            "event": "REOPEN",
+            "effects": [["set", "@entity.status", "todo"], ["emit", "TASK_UPDATED", "@entity"]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [
+          { "name": "browsing", "isInitial": true },
+          { "name": "viewing" },
+          { "name": "editing" }
+        ],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "VIEW", "name": "View User" },
+          { "key": "EDIT", "name": "Edit User" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "page-header",
+                "title": "Team Members"
+              }],
+              ["render-ui", "main", {
+                "type": "entity-cards",
+                "entity": "User",
+                "fieldNames": ["displayName", "email", "role"],
+                "itemActions": [
+                  { "label": "View", "event": "VIEW" },
+                  { "label": "Edit", "event": "EDIT" }
+                ]
+              }]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              ["render-ui", "drawer", {
+                "type": "entity-detail",
+                "entity": "User",
+                "fieldNames": ["displayName", "email", "role", "skills", "capacity", "timezone"],
+                "headerActions": [{ "label": "Edit", "event": "EDIT" }, { "label": "Close", "event": "CANCEL" }]
+              }]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "drawer", null]]
+          },
+          {
+            "from": ["browsing", "viewing"],
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "User",
+                "title": "Edit User",
+                "fields": ["displayName", "role", "skills", "capacity", "timezone"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [["emit", "USER_UPDATED", "@payload"], ["render-ui", "modal", null], ["render-ui", "drawer", null]]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserProfile",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "viewing", "isInitial": true }, { "name": "editing" }],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "EDIT", "name": "Edit Profile" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "viewing",
+            "to": "viewing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", {
+                "type": "entity-detail",
+                "entity": "User",
+                "fieldNames": ["displayName", "email", "avatarUrl", "role", "skills", "capacity", "timezone", "notificationPrefs"],
+                "headerActions": [{ "label": "Edit", "event": "EDIT" }]
+              }]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              ["render-ui", "modal", {
+                "type": "form-section",
+                "entity": "User",
+                "title": "Edit Profile",
+                "fields": ["displayName", "avatarUrl", "skills", "capacity", "timezone", "notificationPrefs"],
+                "onSubmit": "SAVE",
+                "onCancel": "CANCEL"
+              }]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "viewing",
+            "event": "SAVE",
+            "effects": [["emit", "USER_UPDATED", "@payload"], ["render-ui", "modal", null]]
+          },
+          {
+            "from": "editing",
+            "to": "viewing",
+            "event": "CANCEL",
+            "effects": [["render-ui", "modal", null]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "CommentInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "idle", "isInitial": true }, { "name": "composing" }, { "name": "editing" }],
+        "events": [
+          { "key": "COMPOSE", "name": "Compose" },
+          { "key": "EDIT", "name": "Edit" },
+          { "key": "SUBMIT", "name": "Submit" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          { "from": "idle", "to": "composing", "event": "COMPOSE", "effects": [] },
+          { "from": "composing", "to": "idle", "event": "SUBMIT", "effects": [["emit", "COMMENT_ADDED", "@payload"]] },
+          { "from": "composing", "to": "idle", "event": "CANCEL", "effects": [] },
+          { "from": "idle", "to": "editing", "event": "EDIT", "effects": [] },
+          { "from": "editing", "to": "idle", "event": "SUBMIT", "effects": [["emit", "COMMENT_EDITED", "@payload"]] },
+          { "from": "editing", "to": "idle", "event": "CANCEL", "effects": [] }
+        ]
+      }
+    },
+    {
+      "name": "LabelInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "browsing", "isInitial": true }, { "name": "creating" }, { "name": "editing" }],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CREATE", "name": "Create" },
+          { "key": "EDIT", "name": "Edit" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", { "type": "page-header", "title": "Labels", "actions": [{ "label": "New Label", "event": "CREATE" }] }],
+              ["render-ui", "main", { "type": "entity-table", "entity": "Label", "columns": ["name", "color", "description"], "itemActions": [{ "label": "Edit", "event": "EDIT" }] }]
+            ]
+          },
+          { "from": "browsing", "to": "creating", "event": "CREATE", "effects": [["render-ui", "modal", { "type": "form-section", "entity": "Label", "fields": ["name", "color", "description"], "onSubmit": "SAVE", "onCancel": "CANCEL" }]] },
+          { "from": "creating", "to": "browsing", "event": "SAVE", "effects": [["emit", "LABEL_CREATED", "@payload"], ["render-ui", "modal", null]] },
+          { "from": "creating", "to": "browsing", "event": "CANCEL", "effects": [["render-ui", "modal", null]] },
+          { "from": "browsing", "to": "editing", "event": "EDIT", "effects": [["render-ui", "modal", { "type": "form-section", "entity": "Label", "fields": ["name", "color", "description"], "onSubmit": "SAVE", "onCancel": "CANCEL" }]] },
+          { "from": "editing", "to": "browsing", "event": "SAVE", "effects": [["emit", "LABEL_UPDATED", "@payload"], ["render-ui", "modal", null]] },
+          { "from": "editing", "to": "browsing", "event": "CANCEL", "effects": [["render-ui", "modal", null]] }
+        ]
+      }
+    },
+    {
+      "name": "TimeEntryInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "browsing", "isInitial": true }, { "name": "logging" }, { "name": "editing" }],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "LOG", "name": "Log Time" },
+          { "key": "EDIT", "name": "Edit" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", { "type": "page-header", "title": "Time Tracking", "actions": [{ "label": "Log Time", "event": "LOG" }] }],
+              ["render-ui", "main", { "type": "entity-table", "entity": "TimeEntry", "columns": ["date", "hours", "description", "billable"], "itemActions": [{ "label": "Edit", "event": "EDIT" }] }]
+            ]
+          },
+          { "from": "browsing", "to": "logging", "event": "LOG", "effects": [["render-ui", "modal", { "type": "form-section", "entity": "TimeEntry", "fields": ["taskId", "hours", "description", "date", "billable"], "onSubmit": "SAVE", "onCancel": "CANCEL" }]] },
+          { "from": "logging", "to": "browsing", "event": "SAVE", "effects": [["emit", "TIME_LOGGED", "@payload"], ["render-ui", "modal", null]] },
+          { "from": "logging", "to": "browsing", "event": "CANCEL", "effects": [["render-ui", "modal", null]] },
+          { "from": "browsing", "to": "editing", "event": "EDIT", "effects": [["render-ui", "modal", { "type": "form-section", "entity": "TimeEntry", "fields": ["hours", "description", "date", "billable"], "onSubmit": "SAVE", "onCancel": "CANCEL" }]] },
+          { "from": "editing", "to": "browsing", "event": "SAVE", "effects": [["emit", "TIME_UPDATED", "@payload"], ["render-ui", "modal", null]] },
+          { "from": "editing", "to": "browsing", "event": "CANCEL", "effects": [["render-ui", "modal", null]] }
+        ]
+      }
+    },
+    {
+      "name": "NotificationInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "idle", "isInitial": true }],
+        "events": [
+          { "key": "MARK_READ", "name": "Mark Read" },
+          { "key": "CREATE_MENTION_NOTIFICATION", "name": "Create Mention" },
+          { "key": "CREATE_ASSIGNMENT_NOTIFICATION", "name": "Create Assignment" },
+          { "key": "CREATE_COMMENT_NOTIFICATION", "name": "Create Comment" }
+        ],
+        "transitions": [
+          { "from": "idle", "to": "idle", "event": "MARK_READ", "effects": [["set", "@entity.read", true]] },
+          { "from": "idle", "to": "idle", "event": "CREATE_MENTION_NOTIFICATION", "effects": [] },
+          { "from": "idle", "to": "idle", "event": "CREATE_ASSIGNMENT_NOTIFICATION", "effects": [] },
+          { "from": "idle", "to": "idle", "event": "CREATE_COMMENT_NOTIFICATION", "effects": [] }
+        ]
+      }
+    },
+    {
+      "name": "ReportInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "idle", "isInitial": true }, { "name": "generating" }, { "name": "viewing" }],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "GENERATE", "name": "Generate Report" },
+          { "key": "VIEW", "name": "View Report" },
+          { "key": "CLOSE", "name": "Close" }
+        ],
+        "transitions": [
+          {
+            "from": "idle",
+            "to": "idle",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", { "type": "page-header", "title": "Reports" }],
+              ["render-ui", "main", { "type": "entity-cards", "entity": "Report", "fieldNames": ["type", "generatedAt"], "itemActions": [{ "label": "View", "event": "VIEW" }] }]
+            ]
+          },
+          { "from": "idle", "to": "generating", "event": "GENERATE", "effects": [] },
+          { "from": "generating", "to": "viewing", "event": "VIEW", "effects": [] },
+          { "from": "viewing", "to": "idle", "event": "CLOSE", "effects": [] }
+        ]
+      }
+    },
+    {
+      "name": "IntegrationInteraction",
+      "category": "interaction",
+      "stateMachine": {
+        "states": [{ "name": "browsing", "isInitial": true }, { "name": "configuring" }, { "name": "testing" }],
+        "events": [
+          { "key": "INIT", "name": "Initialize" },
+          { "key": "CONFIGURE", "name": "Configure" },
+          { "key": "TEST", "name": "Test Connection" },
+          { "key": "SAVE", "name": "Save" },
+          { "key": "CANCEL", "name": "Cancel" }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              ["render-ui", "main", { "type": "page-header", "title": "Integrations" }],
+              ["render-ui", "main", { "type": "entity-cards", "entity": "Integration", "fieldNames": ["type", "status", "lastSyncAt"], "itemActions": [{ "label": "Configure", "event": "CONFIGURE" }, { "label": "Test", "event": "TEST" }] }]
+            ]
+          },
+          { "from": "browsing", "to": "configuring", "event": "CONFIGURE", "effects": [["render-ui", "modal", { "type": "form-section", "entity": "Integration", "fields": ["config", "credentials"], "onSubmit": "SAVE", "onCancel": "CANCEL" }]] },
+          { "from": "configuring", "to": "browsing", "event": "SAVE", "effects": [["render-ui", "modal", null]] },
+          { "from": "configuring", "to": "browsing", "event": "CANCEL", "effects": [["render-ui", "modal", null]] },
+          { "from": "browsing", "to": "testing", "event": "TEST", "effects": [] },
+          { "from": "testing", "to": "browsing", "event": "CANCEL", "effects": [] }
+        ]
+      }
+    }
+  ]
+}

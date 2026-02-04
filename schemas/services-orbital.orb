@@ -1,0 +1,130 @@
+{
+  "name": "Services Orbital Test",
+  "version": "1.0.0",
+  "description": "Test schema for services definition at orbital level",
+  "orbitals": [
+    {
+      "name": "WeatherAPI",
+      "services": [
+        {
+          "name": "openweather",
+          "type": "rest",
+          "baseUrl": "https://api.openweathermap.org/data/2.5",
+          "auth": {
+            "type": "api-key",
+            "keyName": "appid",
+            "location": "query",
+            "secretEnv": "OPENWEATHER_API_KEY"
+          },
+          "timeout": 30000
+        }
+      ],
+      "entity": {
+        "name": "WeatherData",
+        "persistence": "runtime",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true,
+            "primaryKey": true
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "temperature",
+            "type": "number"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "lastUpdated",
+            "type": "timestamp"
+          }
+        ]
+      },
+      "emits": ["WEATHER_RESULT", "WEATHER_ERROR"],
+      "listens": [
+        {
+          "event": "FETCH_WEATHER",
+          "triggers": "FETCH_WEATHER",
+          "scope": "external"
+        }
+      ],
+      "traits": [
+        {
+          "name": "FetchWeather",
+          "category": "integration",
+          "stateMachine": {
+            "states": [
+              { "name": "idle", "isInitial": true },
+              { "name": "fetching" },
+              { "name": "success" },
+              { "name": "error" }
+            ],
+            "events": [
+              { "key": "INIT" },
+              { "key": "FETCH_WEATHER" },
+              { "key": "RESPONSE_OK" },
+              { "key": "RESPONSE_ERROR" }
+            ],
+            "transitions": [
+              {
+                "from": "idle",
+                "event": "INIT",
+                "to": "idle",
+                "effects": []
+              },
+              {
+                "from": "idle",
+                "event": "FETCH_WEATHER",
+                "to": "fetching",
+                "effects": [
+                  ["set", "@entity.city", "@payload.city"]
+                ]
+              },
+              {
+                "from": "fetching",
+                "event": "RESPONSE_OK",
+                "to": "success",
+                "effects": [
+                  ["set", "@entity.temperature", "@payload.temp"],
+                  ["set", "@entity.description", "@payload.desc"],
+                  ["emit", "WEATHER_RESULT", {
+                    "city": "@entity.city",
+                    "temperature": "@entity.temperature",
+                    "description": "@entity.description"
+                  }]
+                ]
+              },
+              {
+                "from": "fetching",
+                "event": "RESPONSE_ERROR",
+                "to": "error",
+                "effects": [
+                  ["emit", "WEATHER_ERROR", {
+                    "city": "@entity.city",
+                    "error": "@payload.message"
+                  }]
+                ]
+              },
+              {
+                "from": ["success", "error"],
+                "event": "FETCH_WEATHER",
+                "to": "fetching",
+                "effects": [
+                  ["set", "@entity.city", "@payload.city"]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": []
+    }
+  ]
+}

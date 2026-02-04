@@ -1,0 +1,682 @@
+{
+  "name": "Customer Management",
+  "entity": {
+    "name": "Customer",
+    "collection": "customers",
+    "fields": [
+      {
+        "name": "email",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "firstName",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "lastName",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "phone",
+        "type": "string"
+      },
+      {
+        "name": "totalOrders",
+        "type": "number",
+        "default": 0
+      },
+      {
+        "name": "totalSpent",
+        "type": "number",
+        "default": 0
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "active",
+          "inactive",
+          "suspended"
+        ]
+      },
+      {
+        "name": "joinDate",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "lastOrderDate",
+        "type": "date"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "CustomerManagement",
+      "category": "interaction",
+      "linkedEntity": "Customer",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "searching"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Customer"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Customer"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Customer"
+          },
+          {
+            "key": "SEARCH",
+            "name": "Search"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete"
+          },
+          {
+            "key": "FILTER",
+            "name": "Filter"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Customers",
+                  "subtitle": "Manage customer accounts and information",
+                  "actions": [
+                    {
+                      "label": "New Customer",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "email",
+                      "filterType": "search",
+                      "label": "Search by email",
+                      "placeholder": "Enter email..."
+                    },
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "active",
+                        "inactive",
+                        "suspended"
+                      ]
+                    },
+                    {
+                      "field": "totalOrders",
+                      "filterType": "number-range",
+                      "label": "Total Orders"
+                    },
+                    {
+                      "field": "joinDate",
+                      "filterType": "date-range",
+                      "label": "Join Date"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Customer",
+                  "columns": [
+                    "email",
+                    "firstName",
+                    "lastName",
+                    "totalOrders",
+                    "totalSpent",
+                    "status",
+                    "joinDate"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "title": "Create Customer",
+                  "entity": "Customer",
+                  "fields": [
+                    {
+                      "field": "email",
+                      "label": "Email",
+                      "inputType": "email",
+                      "required": true
+                    },
+                    {
+                      "field": "firstName",
+                      "label": "First Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "lastName",
+                      "label": "Last Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "phone",
+                      "label": "Phone",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "active",
+                        "inactive",
+                        "suspended"
+                      ]
+                    },
+                    {
+                      "field": "joinDate",
+                      "label": "Join Date",
+                      "inputType": "date",
+                      "required": true
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Create Customer",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "title": "Customer Details",
+                  "entity": "Customer",
+                  "fieldNames": [
+                    "email",
+                    "firstName",
+                    "lastName",
+                    "phone",
+                    "totalOrders",
+                    "totalSpent",
+                    "status",
+                    "joinDate",
+                    "lastOrderDate"
+                  ],
+                  "actions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "title": "Edit Customer",
+                  "entity": "Customer",
+                  "fields": [
+                    {
+                      "field": "email",
+                      "label": "Email",
+                      "inputType": "email",
+                      "required": true
+                    },
+                    {
+                      "field": "firstName",
+                      "label": "First Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "lastName",
+                      "label": "Last Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "phone",
+                      "label": "Phone",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "active",
+                        "inactive",
+                        "suspended"
+                      ]
+                    },
+                    {
+                      "field": "totalOrders",
+                      "label": "Total Orders",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "totalSpent",
+                      "label": "Total Spent",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "lastOrderDate",
+                      "label": "Last Order Date",
+                      "inputType": "date"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "title": "Edit Customer",
+                  "entity": "Customer",
+                  "fields": [
+                    {
+                      "field": "email",
+                      "label": "Email",
+                      "inputType": "email",
+                      "required": true
+                    },
+                    {
+                      "field": "firstName",
+                      "label": "First Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "lastName",
+                      "label": "Last Name",
+                      "inputType": "text",
+                      "required": true
+                    },
+                    {
+                      "field": "phone",
+                      "label": "Phone",
+                      "inputType": "text"
+                    },
+                    {
+                      "field": "status",
+                      "label": "Status",
+                      "inputType": "select",
+                      "values": [
+                        "active",
+                        "inactive",
+                        "suspended"
+                      ]
+                    },
+                    {
+                      "field": "totalOrders",
+                      "label": "Total Orders",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "totalSpent",
+                      "label": "Total Spent",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "lastOrderDate",
+                      "label": "Last Order Date",
+                      "inputType": "date"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "create",
+                "Customer",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Customer created successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Customer",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Customer updated successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "DELETE",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "Customer",
+                "@selected"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Customer deleted successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "DELETE",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "Customer",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "success",
+                  "message": "Customer deleted successfully"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "FILTER",
+            "effects": [
+              [
+                "filter",
+                "Customer",
+                "@filters"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "CustomersPage",
+      "path": "/customers",
+      "viewType": "list",
+      "primaryEntity": "Customer",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "CustomerManagement"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "CUSTOMER_CREATED",
+    "CUSTOMER_UPDATED",
+    "CUSTOMER_DELETED"
+  ],
+  "listens": [
+    "ORDER_COMPLETED",
+    "PAYMENT_PROCESSED"
+  ]
+}

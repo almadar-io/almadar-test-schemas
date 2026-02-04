@@ -1,0 +1,569 @@
+{
+  "name": "AMAOSMultiOrbital",
+  "version": "1.0.0",
+  "description": "AMA OS POC - Multi-orbital communication via emit/listen",
+
+  "orbitals": [
+    {
+      "name": "System Monitor",
+      "entity": {
+        "name": "SystemStatus",
+        "persistence": "runtime",
+        "fields": [
+          { "name": "id", "type": "string", "default": "system" },
+          { "name": "cpuUsage", "type": "number", "default": 0 },
+          { "name": "memoryPercent", "type": "number", "default": 0 },
+          { "name": "batteryPercent", "type": "number", "default": 100 },
+          { "name": "batteryCharging", "type": "boolean", "default": false },
+          { "name": "temperature", "type": "number", "default": 0 },
+          { "name": "lastCheck", "type": "timestamp" }
+        ]
+      },
+      "traits": [{
+        "name": "SystemWatcher",
+        "category": "interaction",
+        "linkedEntity": "SystemStatus",
+        "emits": [
+          {
+            "event": "BATTERY_LOW",
+            "description": "Battery dropped below 20%",
+            "scope": "external",
+            "payload": [
+              { "name": "percent", "type": "number", "required": true },
+              { "name": "charging", "type": "boolean", "required": true }
+            ]
+          },
+          {
+            "event": "BATTERY_CRITICAL",
+            "description": "Battery dropped below 10%",
+            "scope": "external",
+            "payload": [
+              { "name": "percent", "type": "number", "required": true }
+            ]
+          },
+          {
+            "event": "CPU_HIGH",
+            "description": "CPU usage exceeded 80%",
+            "scope": "external",
+            "payload": [
+              { "name": "usage", "type": "number", "required": true }
+            ]
+          },
+          {
+            "event": "MEMORY_HIGH",
+            "description": "Memory usage exceeded 85%",
+            "scope": "external",
+            "payload": [
+              { "name": "percent", "type": "number", "required": true }
+            ]
+          },
+          {
+            "event": "TEMPERATURE_HIGH",
+            "description": "Temperature exceeded 80°C",
+            "scope": "external",
+            "payload": [
+              { "name": "tempC", "type": "number", "required": true }
+            ]
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "idle", "isInitial": true },
+            { "name": "monitoring" }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Start Monitoring" },
+            { "key": "CHECK", "name": "Check System" },
+            { "key": "STOP", "name": "Stop Monitoring" }
+          ],
+          "transitions": [
+            {
+              "from": "idle",
+              "to": "monitoring",
+              "event": "INIT",
+              "effects": [
+                ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+                ["set", "@entity.batteryPercent", ["oal/battery-status"]],
+                ["set", "@entity.lastCheck", "@now"],
+                ["render-ui", "main", {
+                  "type": "stats",
+                  "entity": "SystemStatus",
+                  "stats": [
+                    { "label": "CPU", "field": "cpuUsage", "format": "percent" },
+                    { "label": "Memory", "field": "memoryPercent", "format": "percent" },
+                    { "label": "Battery", "field": "batteryPercent", "format": "percent" },
+                    { "label": "Temp", "field": "temperature", "format": "temperature" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "monitoring",
+              "event": "CHECK",
+              "effects": [
+                ["set", "@entity.cpuUsage", ["oal/cpu-usage"]],
+                ["set", "@entity.memoryPercent", ["oal/memory-info"]],
+                ["set", "@entity.batteryPercent", ["oal/battery-status"]],
+                ["set", "@entity.temperature", ["oal/thermal-zones"]],
+                ["set", "@entity.lastCheck", "@now"],
+
+                ["if", ["and",
+                  ["<", "@entity.batteryPercent", 10],
+                  ["not", "@entity.batteryCharging"]
+                ], ["emit", "BATTERY_CRITICAL", {
+                  "percent": "@entity.batteryPercent"
+                }], null],
+
+                ["if", ["and",
+                  ["<", "@entity.batteryPercent", 20],
+                  [">=", "@entity.batteryPercent", 10],
+                  ["not", "@entity.batteryCharging"]
+                ], ["emit", "BATTERY_LOW", {
+                  "percent": "@entity.batteryPercent",
+                  "charging": "@entity.batteryCharging"
+                }], null],
+
+                ["if", [">", "@entity.cpuUsage", 80],
+                  ["emit", "CPU_HIGH", { "usage": "@entity.cpuUsage" }],
+                  null
+                ],
+
+                ["if", [">", "@entity.memoryPercent", 85],
+                  ["emit", "MEMORY_HIGH", { "percent": "@entity.memoryPercent" }],
+                  null
+                ],
+
+                ["if", [">", "@entity.temperature", 80],
+                  ["emit", "TEMPERATURE_HIGH", { "tempC": "@entity.temperature" }],
+                  null
+                ]
+              ]
+            },
+            {
+              "from": "monitoring",
+              "to": "idle",
+              "event": "STOP",
+              "effects": [
+                ["oal/notify", "System Monitor", "Monitoring stopped"]
+              ]
+            }
+          ]
+        },
+        "ticks": [{
+          "name": "PeriodicCheck",
+          "interval": 5000,
+          "effects": [["emit", "CHECK"]]
+        }]
+      }],
+      "pages": [{
+        "name": "MonitorPage",
+        "path": "/",
+        "slots": ["main"],
+        "traits": [{ "ref": "SystemWatcher" }]
+      }]
+    },
+
+    {
+      "name": "Alert Manager",
+      "entity": {
+        "name": "AlertLog",
+        "persistence": "runtime",
+        "fields": [
+          { "name": "id", "type": "string" },
+          { "name": "alertType", "type": "string" },
+          { "name": "message", "type": "string" },
+          { "name": "severity", "type": "string", "default": "info" },
+          { "name": "acknowledged", "type": "boolean", "default": false },
+          { "name": "timestamp", "type": "timestamp" },
+          { "name": "totalAlerts", "type": "number", "default": 0 },
+          { "name": "lastAlertTime", "type": "timestamp" }
+        ]
+      },
+      "traits": [{
+        "name": "AlertResponder",
+        "category": "interaction",
+        "linkedEntity": "AlertLog",
+        "listens": [
+          {
+            "event": "BATTERY_LOW",
+            "triggers": "HANDLE_BATTERY_LOW",
+            "scope": "external",
+            "description": "Handle low battery warning"
+          },
+          {
+            "event": "BATTERY_CRITICAL",
+            "triggers": "HANDLE_BATTERY_CRITICAL",
+            "scope": "external",
+            "description": "Handle critical battery - immediate action required"
+          },
+          {
+            "event": "CPU_HIGH",
+            "triggers": "HANDLE_CPU_HIGH",
+            "scope": "external",
+            "description": "Handle high CPU usage alert"
+          },
+          {
+            "event": "MEMORY_HIGH",
+            "triggers": "HANDLE_MEMORY_HIGH",
+            "scope": "external",
+            "description": "Handle high memory usage alert"
+          },
+          {
+            "event": "TEMPERATURE_HIGH",
+            "triggers": "HANDLE_TEMPERATURE_HIGH",
+            "scope": "external",
+            "description": "Handle high temperature alert"
+          },
+          {
+            "event": "PowerController.POWER_MODE_CHANGED",
+            "triggers": "LOG_POWER_CHANGE",
+            "scope": "external",
+            "description": "Log power mode changes"
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "ready", "isInitial": true }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Initialize" },
+            { "key": "HANDLE_BATTERY_LOW", "name": "Battery Low" },
+            { "key": "HANDLE_BATTERY_CRITICAL", "name": "Battery Critical" },
+            { "key": "HANDLE_CPU_HIGH", "name": "CPU High" },
+            { "key": "HANDLE_MEMORY_HIGH", "name": "Memory High" },
+            { "key": "HANDLE_TEMPERATURE_HIGH", "name": "Temperature High" },
+            { "key": "ACKNOWLEDGE", "name": "Acknowledge Alert" },
+            { "key": "CLEAR_ALL", "name": "Clear All Alerts" },
+            { "key": "LOG_POWER_CHANGE", "name": "Log Power Change" }
+          ],
+          "transitions": [
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "INIT",
+              "effects": [
+                ["render-ui", "main", {
+                  "type": "page-header",
+                  "title": "Alert Center",
+                  "actions": [
+                    { "event": "CLEAR_ALL", "label": "Clear All Alerts" }
+                  ]
+                }],
+                ["render-ui", "sidebar", {
+                  "type": "stats",
+                  "entity": "AlertLog",
+                  "stats": [
+                    { "label": "Total Alerts", "field": "totalAlerts" },
+                    { "label": "Last Alert", "field": "lastAlertTime", "format": "datetime" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "HANDLE_BATTERY_LOW",
+              "effects": [
+                ["set", "@entity.alertType", "battery_low"],
+                ["set", "@entity.message", ["str/concat", "Battery at ", "@payload.percent", "% - connect charger"]],
+                ["set", "@entity.severity", "warning"],
+                ["set", "@entity.timestamp", "@now"],
+                ["set", "@entity.totalAlerts", ["+", "@entity.totalAlerts", 1]],
+                ["set", "@entity.lastAlertTime", "@now"],
+                ["oal/notify", "Battery Low", ["str/concat", "Battery at ", "@payload.percent", "%"], "battery-low"],
+                ["oal/speak", ["str/concat", "Warning: Battery is low at ", "@payload.percent", " percent"]]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "HANDLE_BATTERY_CRITICAL",
+              "effects": [
+                ["set", "@entity.alertType", "battery_critical"],
+                ["set", "@entity.message", ["str/concat", "CRITICAL: Battery at ", "@payload.percent", "%!"]],
+                ["set", "@entity.severity", "critical"],
+                ["set", "@entity.timestamp", "@now"],
+                ["set", "@entity.totalAlerts", ["+", "@entity.totalAlerts", 1]],
+                ["set", "@entity.lastAlertTime", "@now"],
+                ["oal/notify", "BATTERY CRITICAL", ["str/concat", "Only ", "@payload.percent", "% remaining!"], "battery-caution"],
+                ["oal/speak", "Critical warning: Battery is critically low. Please connect charger immediately."],
+                ["oal/play-sound", "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"],
+                ["oal/brightness-set", 30]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "HANDLE_CPU_HIGH",
+              "effects": [
+                ["set", "@entity.alertType", "cpu_high"],
+                ["set", "@entity.message", ["str/concat", "CPU usage at ", "@payload.usage", "%"]],
+                ["set", "@entity.severity", "warning"],
+                ["set", "@entity.timestamp", "@now"],
+                ["set", "@entity.totalAlerts", ["+", "@entity.totalAlerts", 1]],
+                ["set", "@entity.lastAlertTime", "@now"],
+                ["oal/notify", "High CPU Usage", ["str/concat", "CPU at ", "@payload.usage", "%"], "cpu"]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "HANDLE_MEMORY_HIGH",
+              "effects": [
+                ["set", "@entity.alertType", "memory_high"],
+                ["set", "@entity.message", ["str/concat", "Memory usage at ", "@payload.percent", "%"]],
+                ["set", "@entity.severity", "warning"],
+                ["set", "@entity.timestamp", "@now"],
+                ["set", "@entity.totalAlerts", ["+", "@entity.totalAlerts", 1]],
+                ["set", "@entity.lastAlertTime", "@now"],
+                ["oal/notify", "High Memory Usage", ["str/concat", "Memory at ", "@payload.percent", "%"], "memory"]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "HANDLE_TEMPERATURE_HIGH",
+              "effects": [
+                ["set", "@entity.alertType", "temperature_high"],
+                ["set", "@entity.message", ["str/concat", "Temperature at ", "@payload.tempC", "°C"]],
+                ["set", "@entity.severity", "critical"],
+                ["set", "@entity.timestamp", "@now"],
+                ["set", "@entity.totalAlerts", ["+", "@entity.totalAlerts", 1]],
+                ["set", "@entity.lastAlertTime", "@now"],
+                ["oal/notify", "High Temperature", ["str/concat", "System at ", "@payload.tempC", "°C - may throttle"], "temperature"],
+                ["oal/speak", ["str/concat", "Warning: System temperature is high at ", "@payload.tempC", " degrees"]]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "ACKNOWLEDGE",
+              "effects": [
+                ["set", "@entity.acknowledged", true],
+                ["oal/notify", "Alert Acknowledged", "@entity.message"]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "CLEAR_ALL",
+              "effects": [
+                ["set", "@entity.totalAlerts", 0],
+                ["set", "@entity.acknowledged", false],
+                ["oal/notify", "Alerts Cleared", "All alerts have been cleared"]
+              ]
+            },
+            {
+              "from": "ready",
+              "to": "ready",
+              "event": "LOG_POWER_CHANGE",
+              "effects": [
+                ["set", "@entity.alertType", "power_mode"],
+                ["set", "@entity.message", ["str/concat", "Power mode: ", "@payload.mode", " (brightness: ", "@payload.brightness", "%)"]],
+                ["set", "@entity.severity", "info"],
+                ["set", "@entity.timestamp", "@now"]
+              ]
+            }
+          ]
+        }
+      }],
+      "pages": [{
+        "name": "AlertsPage",
+        "path": "/alerts",
+        "slots": ["main", "sidebar"],
+        "traits": [{ "ref": "AlertResponder" }]
+      }]
+    },
+
+    {
+      "name": "Power Manager",
+      "entity": {
+        "name": "PowerSettings",
+        "persistence": "runtime",
+        "fields": [
+          { "name": "id", "type": "string", "default": "power" },
+          { "name": "powerMode", "type": "string", "default": "normal" },
+          { "name": "brightness", "type": "number", "default": 100 },
+          { "name": "autoDimEnabled", "type": "boolean", "default": true },
+          { "name": "lowPowerThreshold", "type": "number", "default": 20 }
+        ]
+      },
+      "traits": [{
+        "name": "PowerController",
+        "category": "interaction",
+        "linkedEntity": "PowerSettings",
+        "listens": [
+          {
+            "event": "BATTERY_LOW",
+            "triggers": "ENABLE_POWER_SAVE",
+            "scope": "external",
+            "description": "Automatically enable power saving when battery is low"
+          },
+          {
+            "event": "BATTERY_CRITICAL",
+            "triggers": "ENABLE_EMERGENCY_MODE",
+            "scope": "external",
+            "description": "Enable emergency power mode"
+          }
+        ],
+        "emits": [
+          {
+            "event": "PowerController.POWER_MODE_CHANGED",
+            "description": "Power mode has changed",
+            "scope": "external",
+            "payload": [
+              { "name": "mode", "type": "string", "required": true },
+              { "name": "brightness", "type": "number", "required": true }
+            ]
+          }
+        ],
+        "stateMachine": {
+          "states": [
+            { "name": "normal", "isInitial": true },
+            { "name": "powerSave" },
+            { "name": "emergency" }
+          ],
+          "events": [
+            { "key": "INIT", "name": "Initialize" },
+            { "key": "ENABLE_POWER_SAVE", "name": "Enable Power Save" },
+            { "key": "ENABLE_EMERGENCY_MODE", "name": "Emergency Mode" },
+            { "key": "RESTORE_NORMAL", "name": "Restore Normal" },
+            { "key": "SET_BRIGHTNESS", "name": "Set Brightness" }
+          ],
+          "transitions": [
+            {
+              "from": "normal",
+              "to": "normal",
+              "event": "INIT",
+              "effects": [
+                ["set", "@entity.brightness", ["oal/brightness-get"]],
+                ["render-ui", "main", {
+                  "type": "form",
+                  "entity": "PowerSettings",
+                  "mode": "edit",
+                  "fields": [
+                    { "name": "brightness", "label": "Brightness" },
+                    { "name": "autoDimEnabled", "label": "Auto-dim on low battery" },
+                    { "name": "lowPowerThreshold", "label": "Low power threshold %" }
+                  ]
+                }],
+                ["render-ui", "sidebar", {
+                  "type": "page-header",
+                  "title": "Power Controls",
+                  "actions": [
+                    { "event": "ENABLE_POWER_SAVE", "label": "Power Save Mode" },
+                    { "event": "RESTORE_NORMAL", "label": "Normal Mode" }
+                  ]
+                }]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "powerSave",
+              "event": "ENABLE_POWER_SAVE",
+              "effects": [
+                ["set", "@entity.powerMode", "powerSave"],
+                ["set", "@entity.brightness", 50],
+                ["oal/brightness-set", 50],
+                ["oal/notify", "Power Save", "Power saving mode enabled", "battery"],
+                ["emit", "PowerController.POWER_MODE_CHANGED", {
+                  "mode": "powerSave",
+                  "brightness": 50
+                }]
+              ]
+            },
+            {
+              "from": "powerSave",
+              "to": "emergency",
+              "event": "ENABLE_EMERGENCY_MODE",
+              "effects": [
+                ["set", "@entity.powerMode", "emergency"],
+                ["set", "@entity.brightness", 20],
+                ["oal/brightness-set", 20],
+                ["oal/volume-set", 30],
+                ["oal/notify", "EMERGENCY MODE", "Minimum power consumption enabled", "battery-caution"],
+                ["emit", "PowerController.POWER_MODE_CHANGED", {
+                  "mode": "emergency",
+                  "brightness": 20
+                }]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "emergency",
+              "event": "ENABLE_EMERGENCY_MODE",
+              "effects": [
+                ["set", "@entity.powerMode", "emergency"],
+                ["set", "@entity.brightness", 20],
+                ["oal/brightness-set", 20],
+                ["oal/volume-set", 30],
+                ["oal/notify", "EMERGENCY MODE", "Minimum power consumption enabled", "battery-caution"],
+                ["emit", "PowerController.POWER_MODE_CHANGED", {
+                  "mode": "emergency",
+                  "brightness": 20
+                }]
+              ]
+            },
+            {
+              "from": "powerSave",
+              "to": "normal",
+              "event": "RESTORE_NORMAL",
+              "effects": [
+                ["set", "@entity.powerMode", "normal"],
+                ["set", "@entity.brightness", 100],
+                ["oal/brightness-set", 100],
+                ["oal/notify", "Normal Mode", "Power settings restored", "battery-full"],
+                ["emit", "PowerController.POWER_MODE_CHANGED", {
+                  "mode": "normal",
+                  "brightness": 100
+                }]
+              ]
+            },
+            {
+              "from": "emergency",
+              "to": "normal",
+              "event": "RESTORE_NORMAL",
+              "effects": [
+                ["set", "@entity.powerMode", "normal"],
+                ["set", "@entity.brightness", 100],
+                ["oal/brightness-set", 100],
+                ["oal/volume-set", 80],
+                ["oal/notify", "Normal Mode", "Power settings restored", "battery-full"],
+                ["emit", "PowerController.POWER_MODE_CHANGED", {
+                  "mode": "normal",
+                  "brightness": 100
+                }]
+              ]
+            },
+            {
+              "from": "normal",
+              "to": "normal",
+              "event": "SET_BRIGHTNESS",
+              "effects": [
+                ["oal/brightness-set", "@payload.brightness"],
+                ["set", "@entity.brightness", "@payload.brightness"]
+              ]
+            },
+            {
+              "from": "powerSave",
+              "to": "powerSave",
+              "event": "SET_BRIGHTNESS",
+              "guard": ["<=", "@payload.brightness", 70],
+              "effects": [
+                ["oal/brightness-set", "@payload.brightness"],
+                ["set", "@entity.brightness", "@payload.brightness"]
+              ]
+            }
+          ]
+        }
+      }],
+      "pages": [{
+        "name": "PowerPage",
+        "path": "/power",
+        "slots": ["main", "sidebar"],
+        "traits": [{ "ref": "PowerController" }]
+      }]
+    }
+  ]
+}

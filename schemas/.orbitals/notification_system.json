@@ -1,0 +1,430 @@
+{
+  "name": "Notification System",
+  "entity": {
+    "name": "Notification",
+    "collection": "notifications",
+    "fields": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "orderId",
+        "type": "relation",
+        "relation": {
+          "entity": "Order"
+        }
+      },
+      {
+        "name": "type",
+        "type": "enum",
+        "values": [
+          "order_created",
+          "order_updated",
+          "order_shipped",
+          "order_delivered",
+          "order_cancelled",
+          "payment_received",
+          "payment_failed"
+        ],
+        "required": true
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "timestamp",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "read",
+        "type": "boolean",
+        "required": true,
+        "default": false
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "NotificationHandler",
+      "category": "interaction",
+      "linkedEntity": "Notification",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "filtering"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Notification"
+          },
+          {
+            "key": "MARK_READ",
+            "name": "Mark as Read"
+          },
+          {
+            "key": "MARK_ALL_READ",
+            "name": "Mark All as Read"
+          },
+          {
+            "key": "FILTER",
+            "name": "Filter Notifications"
+          },
+          {
+            "key": "CLEAR_FILTER",
+            "name": "Clear Filter"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "DELETE",
+            "name": "Delete Notification"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Notifications",
+                  "actions": [
+                    {
+                      "label": "Mark All Read",
+                      "event": "MARK_ALL_READ",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "type",
+                      "filterType": "select",
+                      "label": "Type",
+                      "options": [
+                        "order_created",
+                        "order_updated",
+                        "order_shipped",
+                        "order_delivered",
+                        "order_cancelled",
+                        "payment_received",
+                        "payment_failed"
+                      ]
+                    },
+                    {
+                      "field": "read",
+                      "filterType": "checkbox",
+                      "label": "Show Unread Only"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-list",
+                  "entity": "Notification",
+                  "fieldNames": [
+                    "type",
+                    "message",
+                    "timestamp",
+                    "read"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Mark Read",
+                      "event": "MARK_READ",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Delete",
+                      "event": "DELETE",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Notification",
+                  "fieldNames": [
+                    "type",
+                    "message",
+                    "timestamp",
+                    "orderId",
+                    "read"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Mark as Read",
+                    "event": "MARK_READ",
+                    "actionType": "submit"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Close",
+                      "event": "CLOSE",
+                      "actionType": "cancel"
+                    }
+                  ]
+                }
+              ],
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "read": true
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "filtering",
+            "event": "FILTER",
+            "effects": [
+              [
+                "render-ui",
+                "sidebar",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "type",
+                      "filterType": "select",
+                      "label": "Notification Type",
+                      "options": [
+                        "order_created",
+                        "order_updated",
+                        "order_shipped",
+                        "order_delivered",
+                        "order_cancelled",
+                        "payment_received",
+                        "payment_failed"
+                      ]
+                    },
+                    {
+                      "field": "dateRange",
+                      "filterType": "date-range",
+                      "label": "Date Range"
+                    },
+                    {
+                      "field": "read",
+                      "filterType": "checkbox",
+                      "label": "Read Status"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "filtering",
+            "to": "browsing",
+            "event": "CLEAR_FILTER",
+            "effects": [
+              [
+                "render-ui",
+                "sidebar",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "MARK_READ",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "read": true
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification marked as read",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "MARK_ALL_READ",
+            "effects": [
+              [
+                "persist",
+                "updateAll",
+                "Notification",
+                {
+                  "read": true
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "All notifications marked as read",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "DELETE",
+            "effects": [
+              [
+                "persist",
+                "delete",
+                "Notification",
+                "@entity"
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification deleted",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "MARK_READ",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Notification",
+                {
+                  "read": true
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "toast",
+                  "message": "Notification marked as read",
+                  "variant": "success"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "NotificationsPage",
+      "path": "/notifications",
+      "viewType": "list",
+      "primaryEntity": "Notification",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "NotificationHandler"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "NOTIFICATION_READ",
+    "NOTIFICATION_DELETED",
+    "ALL_NOTIFICATIONS_READ"
+  ],
+  "listens": [
+    "ORDER_CREATED",
+    "ORDER_UPDATED",
+    "ORDER_SHIPPED",
+    "ORDER_DELIVERED",
+    "ORDER_CANCELLED",
+    "PAYMENT_RECEIVED",
+    "PAYMENT_FAILED"
+  ]
+}

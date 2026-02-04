@@ -1,0 +1,251 @@
+{
+  "name": "Video Research Assistant",
+  "description": "Research tool that searches YouTube and uses LLM to summarize video content",
+  "version": "1.0.0",
+  "orbitals": [
+    {
+      "name": "VideoResearch",
+      "entity": {
+        "name": "Research",
+        "runtime": true,
+        "fields": [
+          { "name": "id", "type": "string", "required": true, "primaryKey": true },
+          { "name": "query", "type": "string", "required": true },
+          { "name": "videos", "type": "array", "default": [] },
+          { "name": "summary", "type": "string", "default": "" },
+          { "name": "keyPoints", "type": "array", "default": [] },
+          { "name": "status", "type": "enum", "values": ["idle", "searching", "summarizing", "complete", "error"], "default": "idle" },
+          { "name": "errorMessage", "type": "string" },
+          { "name": "createdAt", "type": "timestamp", "default": "@now" }
+        ]
+      },
+      "traits": [
+        {
+          "name": "ResearchFlow",
+          "category": "integration",
+          "linkedEntity": "Research",
+          "description": "Orchestrates YouTube search and LLM summarization",
+          "emits": [
+            {
+              "event": "RESEARCH_COMPLETE",
+              "description": "Emitted when research is complete with summary",
+              "scope": "external",
+              "payload": [
+                { "name": "researchId", "type": "string" },
+                { "name": "summary", "type": "string" },
+                { "name": "videoCount", "type": "number" }
+              ]
+            }
+          ],
+          "stateMachine": {
+            "states": [
+              { "name": "idle", "isInitial": true },
+              { "name": "searching" },
+              { "name": "summarizing" },
+              { "name": "complete" },
+              { "name": "error" }
+            ],
+            "events": [
+              { "key": "INIT", "name": "Initialize" },
+              { "key": "SEARCH", "name": "Start Search" },
+              { "key": "YOUTUBE_RESULTS", "name": "YouTube Results Received" },
+              { "key": "SEARCH_FAILED", "name": "Search Failed" },
+              { "key": "SUMMARY_COMPLETE", "name": "Summary Complete" },
+              { "key": "SUMMARIZE_FAILED", "name": "Summarize Failed" },
+              { "key": "RETRY", "name": "Retry" },
+              { "key": "RESET", "name": "Reset" }
+            ],
+            "transitions": [
+              {
+                "from": "idle",
+                "to": "idle",
+                "event": "INIT",
+                "effects": [
+                  ["render-ui", "main", {
+                    "type": "form-section",
+                    "entity": "Research",
+                    "title": "Video Research Assistant",
+                    "subtitle": "Search YouTube and get AI-powered summaries",
+                    "fields": ["query"],
+                    "submitLabel": "Search & Summarize",
+                    "submitEvent": "SEARCH"
+                  }]
+                ]
+              },
+              {
+                "from": "idle",
+                "to": "searching",
+                "event": "SEARCH",
+                "guard": ["!=", "@payload.query", ""],
+                "effects": [
+                  ["set", "query", "@payload.query"],
+                  ["set", "status", "searching"],
+                  ["set", "videos", []],
+                  ["set", "summary", ""],
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Searching YouTube...",
+                    "subtitle": ["str/concat", "Looking for videos about: ", "@payload.query"]
+                  }],
+                  ["call-service", "youtube", "search",
+                    { "query": "@payload.query", "maxResults": 10, "type": "video" },
+                    { "onSuccess": "YOUTUBE_RESULTS", "onError": "SEARCH_FAILED" }
+                  ]
+                ]
+              },
+              {
+                "from": "searching",
+                "to": "summarizing",
+                "event": "YOUTUBE_RESULTS",
+                "effects": [
+                  ["set", "videos", "@payload.items"],
+                  ["set", "status", "summarizing"],
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Analyzing videos...",
+                    "subtitle": ["str/concat", "Found ", ["array/length", "@payload.items"], " videos. Generating summary..."]
+                  }],
+                  ["call-service", "llm", "summarize",
+                    {
+                      "text": ["str/concat",
+                        "Video search results for query: ", "@entity.query", "\n\n",
+                        ["array/map", "@payload.items", ["lambda", ["video"],
+                          ["str/concat", "Title: ", "@video.title", "\nDescription: ", "@video.description", "\n\n"]
+                        ]]
+                      ],
+                      "maxLength": 200,
+                      "style": "detailed"
+                    },
+                    { "onSuccess": "SUMMARY_COMPLETE", "onError": "SUMMARIZE_FAILED" }
+                  ]
+                ]
+              },
+              {
+                "from": "summarizing",
+                "to": "complete",
+                "event": "SUMMARY_COMPLETE",
+                "effects": [
+                  ["set", "summary", "@payload.summary"],
+                  ["set", "keyPoints", "@payload.keyPoints"],
+                  ["set", "status", "complete"],
+                  ["emit", "RESEARCH_COMPLETE", {
+                    "researchId": "@entity.id",
+                    "summary": "@payload.summary",
+                    "videoCount": ["array/length", "@entity.videos"]
+                  }],
+                  ["render-ui", "main", {
+                    "type": "detail-panel",
+                    "entity": "Research",
+                    "title": "Research Complete",
+                    "sections": [
+                      {
+                        "title": "Summary",
+                        "fields": ["summary"]
+                      },
+                      {
+                        "title": "Key Points",
+                        "fields": ["keyPoints"]
+                      },
+                      {
+                        "title": "Videos Found",
+                        "fields": ["videos"]
+                      }
+                    ],
+                    "actions": [
+                      { "label": "New Search", "event": "RESET" }
+                    ]
+                  }]
+                ]
+              },
+              {
+                "from": "searching",
+                "to": "error",
+                "event": "SEARCH_FAILED",
+                "effects": [
+                  ["set", "status", "error"],
+                  ["set", "errorMessage", "@payload.message"],
+                  ["notify", "error", ["str/concat", "Search failed: ", "@payload.message"]],
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Search Failed",
+                    "subtitle": "@payload.message",
+                    "variant": "error",
+                    "actions": [
+                      { "label": "Retry", "event": "RETRY" },
+                      { "label": "Start Over", "event": "RESET" }
+                    ]
+                  }]
+                ]
+              },
+              {
+                "from": "summarizing",
+                "to": "error",
+                "event": "SUMMARIZE_FAILED",
+                "effects": [
+                  ["set", "status", "error"],
+                  ["set", "errorMessage", "@payload.message"],
+                  ["notify", "error", ["str/concat", "Summarization failed: ", "@payload.message"]],
+                  ["render-ui", "main", {
+                    "type": "page-header",
+                    "title": "Summarization Failed",
+                    "subtitle": "We found videos but couldn't generate a summary",
+                    "variant": "error",
+                    "actions": [
+                      { "label": "Retry Summary", "event": "RETRY" },
+                      { "label": "Start Over", "event": "RESET" }
+                    ]
+                  }]
+                ]
+              },
+              {
+                "from": "error",
+                "to": "searching",
+                "event": "RETRY",
+                "guard": ["=", "@entity.status", "error"],
+                "effects": [
+                  ["set", "status", "searching"],
+                  ["set", "errorMessage", ""],
+                  ["call-service", "youtube", "search",
+                    { "query": "@entity.query", "maxResults": 10, "type": "video" },
+                    { "onSuccess": "YOUTUBE_RESULTS", "onError": "SEARCH_FAILED" }
+                  ]
+                ]
+              },
+              {
+                "from": ["complete", "error"],
+                "to": "idle",
+                "event": "RESET",
+                "effects": [
+                  ["set", "status", "idle"],
+                  ["set", "query", ""],
+                  ["set", "videos", []],
+                  ["set", "summary", ""],
+                  ["set", "keyPoints", []],
+                  ["set", "errorMessage", ""],
+                  ["render-ui", "main", {
+                    "type": "form-section",
+                    "entity": "Research",
+                    "title": "Video Research Assistant",
+                    "subtitle": "Search YouTube and get AI-powered summaries",
+                    "fields": ["query"],
+                    "submitLabel": "Search & Summarize",
+                    "submitEvent": "SEARCH"
+                  }]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "name": "ResearchPage",
+          "route": "/research",
+          "title": "Video Research",
+          "slots": ["main"],
+          "traits": ["ResearchFlow"]
+        }
+      ]
+    }
+  ]
+}

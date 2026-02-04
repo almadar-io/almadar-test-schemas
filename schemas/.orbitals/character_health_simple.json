@@ -1,0 +1,410 @@
+{
+  "name": "Character Health System",
+  "entity": {
+    "name": "Character",
+    "runtime": true,
+    "singleton": true,
+    "fields": [
+      {
+        "name": "health",
+        "type": "number",
+        "required": true,
+        "default": 100
+      },
+      {
+        "name": "maxHealth",
+        "type": "number",
+        "required": true,
+        "default": 100
+      },
+      {
+        "name": "isAlive",
+        "type": "boolean",
+        "required": true,
+        "default": true
+      },
+      {
+        "name": "shield",
+        "type": "number",
+        "required": true,
+        "default": 0
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "HealthTrait",
+      "category": "behavior",
+      "linkedEntity": "Character",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "healthy",
+            "isInitial": true
+          },
+          {
+            "name": "wounded"
+          },
+          {
+            "name": "critical"
+          },
+          {
+            "name": "dead"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "TAKE_DAMAGE",
+            "name": "Take Damage"
+          },
+          {
+            "key": "HEAL",
+            "name": "Heal"
+          },
+          {
+            "key": "UPDATE_HEALTH_STATE",
+            "name": "Update Health State"
+          },
+          {
+            "key": "REGENERATE",
+            "name": "Regenerate"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "healthy",
+            "to": "healthy",
+            "event": "INIT",
+            "effects": [
+              {
+                "type": "render_ui",
+                "config": {
+                  "target": "hud-top",
+                  "pattern": {
+                    "type": "game-hud",
+                    "metrics": [
+                      {
+                        "field": "health",
+                        "label": "Health",
+                        "format": "number",
+                        "max": "maxHealth"
+                      },
+                      {
+                        "field": "shield",
+                        "label": "Shield",
+                        "format": "number"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "from": "healthy",
+            "to": "wounded",
+            "event": "TAKE_DAMAGE",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.shield",
+                  "value": "{{max(0, {linkedEntity}.shield - payload.damage)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{max(0, {linkedEntity}.health - max(0, payload.damage - {linkedEntity}.shield))}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          },
+          {
+            "from": "wounded",
+            "to": "critical",
+            "event": "TAKE_DAMAGE",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.shield",
+                  "value": "{{max(0, {linkedEntity}.shield - payload.damage)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{max(0, {linkedEntity}.health - max(0, payload.damage - {linkedEntity}.shield))}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          },
+          {
+            "from": "critical",
+            "to": "dead",
+            "event": "TAKE_DAMAGE",
+            "guard": "{linkedEntity}.health <= 0",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.isAlive",
+                  "value": false,
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "CHARACTER_DIED"
+                }
+              }
+            ]
+          },
+          {
+            "from": "wounded",
+            "to": "healthy",
+            "event": "HEAL",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{min({linkedEntity}.maxHealth, {linkedEntity}.health + payload.amount)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          },
+          {
+            "from": "critical",
+            "to": "wounded",
+            "event": "HEAL",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{min({linkedEntity}.maxHealth, {linkedEntity}.health + payload.amount)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          },
+          {
+            "from": "healthy",
+            "to": "healthy",
+            "event": "UPDATE_HEALTH_STATE",
+            "guard": "{linkedEntity}.health >= {linkedEntity}.maxHealth * 0.5",
+            "effects": [
+              {
+                "type": "render_ui",
+                "config": {
+                  "target": "hud-top",
+                  "pattern": {
+                    "type": "game-hud",
+                    "metrics": [
+                      {
+                        "field": "health",
+                        "label": "Health",
+                        "format": "number",
+                        "max": "maxHealth"
+                      },
+                      {
+                        "field": "shield",
+                        "label": "Shield",
+                        "format": "number"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "from": "wounded",
+            "to": "wounded",
+            "event": "UPDATE_HEALTH_STATE",
+            "guard": "{linkedEntity}.health < {linkedEntity}.maxHealth * 0.5 && {linkedEntity}.health >= {linkedEntity}.maxHealth * 0.25",
+            "effects": [
+              {
+                "type": "render_ui",
+                "config": {
+                  "target": "hud-top",
+                  "pattern": {
+                    "type": "game-hud",
+                    "metrics": [
+                      {
+                        "field": "health",
+                        "label": "Health (Wounded)",
+                        "format": "number",
+                        "max": "maxHealth",
+                        "color": "yellow"
+                      },
+                      {
+                        "field": "shield",
+                        "label": "Shield",
+                        "format": "number"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "from": "critical",
+            "to": "critical",
+            "event": "UPDATE_HEALTH_STATE",
+            "guard": "{linkedEntity}.health < {linkedEntity}.maxHealth * 0.25 && {linkedEntity}.health > 0",
+            "effects": [
+              {
+                "type": "render_ui",
+                "config": {
+                  "target": "hud-top",
+                  "pattern": {
+                    "type": "game-hud",
+                    "metrics": [
+                      {
+                        "field": "health",
+                        "label": "Health (Critical!)",
+                        "format": "number",
+                        "max": "maxHealth",
+                        "color": "red"
+                      },
+                      {
+                        "field": "shield",
+                        "label": "Shield",
+                        "format": "number"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "from": "healthy",
+            "to": "healthy",
+            "event": "REGENERATE",
+            "guard": "{linkedEntity}.isAlive && {linkedEntity}.health < {linkedEntity}.maxHealth",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{min({linkedEntity}.maxHealth, {linkedEntity}.health + 1)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          },
+          {
+            "from": "wounded",
+            "to": "wounded",
+            "event": "REGENERATE",
+            "guard": "{linkedEntity}.isAlive && {linkedEntity}.health < {linkedEntity}.maxHealth",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{min({linkedEntity}.maxHealth, {linkedEntity}.health + 1)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          },
+          {
+            "from": "critical",
+            "to": "critical",
+            "event": "REGENERATE",
+            "guard": "{linkedEntity}.isAlive && {linkedEntity}.health < {linkedEntity}.maxHealth",
+            "effects": [
+              {
+                "type": "update_field",
+                "config": {
+                  "field": "{linkedEntity}.health",
+                  "value": "{{min({linkedEntity}.maxHealth, {linkedEntity}.health + 1)}}",
+                  "operation": "set"
+                }
+              },
+              {
+                "type": "emit_event",
+                "config": {
+                  "eventKey": "UPDATE_HEALTH_STATE"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "GamePage",
+      "path": "/game",
+      "viewType": "game",
+      "primaryEntity": "Character",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "HealthTrait"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "CHARACTER_DIED",
+    "HEALTH_CHANGED"
+  ],
+  "listens": []
+}

@@ -1,0 +1,736 @@
+{
+  "name": "Order Management",
+  "entity": {
+    "name": "Order",
+    "collection": "orders",
+    "fields": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "customerEmail",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "status",
+        "type": "enum",
+        "values": [
+          "pending",
+          "confirmed",
+          "processing",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "required": true,
+        "default": "pending"
+      },
+      {
+        "name": "orderDate",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "shippingAddress",
+        "type": "string"
+      },
+      {
+        "name": "notes",
+        "type": "string"
+      }
+    ]
+  },
+  "traits": [
+    {
+      "name": "OrderLifecycle",
+      "category": "workflow",
+      "linkedEntity": "Order",
+      "stateMachine": {
+        "states": [
+          {
+            "name": "browsing",
+            "isInitial": true
+          },
+          {
+            "name": "creating"
+          },
+          {
+            "name": "viewing"
+          },
+          {
+            "name": "editing"
+          },
+          {
+            "name": "processing"
+          }
+        ],
+        "events": [
+          {
+            "key": "INIT",
+            "name": "Initialize"
+          },
+          {
+            "key": "CREATE",
+            "name": "Create Order"
+          },
+          {
+            "key": "VIEW",
+            "name": "View Order"
+          },
+          {
+            "key": "EDIT",
+            "name": "Edit Order"
+          },
+          {
+            "key": "CONFIRM",
+            "name": "Confirm Order"
+          },
+          {
+            "key": "PROCESS",
+            "name": "Process Order"
+          },
+          {
+            "key": "SHIP",
+            "name": "Ship Order"
+          },
+          {
+            "key": "DELIVER",
+            "name": "Mark Delivered"
+          },
+          {
+            "key": "CANCEL",
+            "name": "Cancel Order"
+          },
+          {
+            "key": "CLOSE",
+            "name": "Close"
+          },
+          {
+            "key": "SAVE",
+            "name": "Save"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "browsing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Orders",
+                  "actions": [
+                    {
+                      "label": "New Order",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "pending",
+                        "confirmed",
+                        "processing",
+                        "shipped",
+                        "delivered",
+                        "cancelled"
+                      ]
+                    },
+                    {
+                      "field": "orderDate",
+                      "filterType": "date-range",
+                      "label": "Order Date"
+                    },
+                    {
+                      "field": "customerEmail",
+                      "filterType": "search",
+                      "label": "Customer Email"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Order",
+                  "columns": [
+                    "id",
+                    "customerEmail",
+                    "amount",
+                    "status",
+                    "orderDate"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "creating",
+            "event": "CREATE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "title": "Create New Order",
+                  "fields": [
+                    {
+                      "field": "customerEmail",
+                      "label": "Customer Email",
+                      "inputType": "email"
+                    },
+                    {
+                      "field": "amount",
+                      "label": "Amount",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "shippingAddress",
+                      "label": "Shipping Address",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "notes",
+                      "label": "Notes",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Create Order",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "browsing",
+            "to": "viewing",
+            "event": "VIEW",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "entity-detail",
+                  "entity": "Order",
+                  "fieldNames": [
+                    "id",
+                    "customerEmail",
+                    "amount",
+                    "status",
+                    "orderDate",
+                    "shippingAddress",
+                    "notes"
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "drawer",
+                {
+                  "type": "action-bar",
+                  "actions": [
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "variant": "secondary"
+                    },
+                    {
+                      "label": "Confirm",
+                      "event": "CONFIRM",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Process",
+                      "event": "PROCESS",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Ship",
+                      "event": "SHIP",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Deliver",
+                      "event": "DELIVER",
+                      "variant": "primary"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "variant": "danger"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "editing",
+            "event": "EDIT",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-section",
+                  "entity": "Order",
+                  "title": "Edit Order",
+                  "fields": [
+                    {
+                      "field": "customerEmail",
+                      "label": "Customer Email",
+                      "inputType": "email"
+                    },
+                    {
+                      "field": "amount",
+                      "label": "Amount",
+                      "inputType": "number"
+                    },
+                    {
+                      "field": "shippingAddress",
+                      "label": "Shipping Address",
+                      "inputType": "textarea"
+                    },
+                    {
+                      "field": "notes",
+                      "label": "Notes",
+                      "inputType": "textarea"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "modal",
+                {
+                  "type": "form-actions",
+                  "primary": {
+                    "label": "Save Changes",
+                    "event": "SAVE",
+                    "actionType": "submit",
+                    "variant": "primary"
+                  },
+                  "secondary": [
+                    {
+                      "label": "Cancel",
+                      "event": "CLOSE",
+                      "actionType": "cancel",
+                      "variant": "secondary"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "processing",
+            "event": "CONFIRM",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "confirmed"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order confirmed successfully",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "processing",
+            "event": "PROCESS",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "processing"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order is now being processed",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "processing",
+            "event": "SHIP",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "shipped"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order has been shipped",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "processing",
+            "event": "DELIVER",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "delivered"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order marked as delivered",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "processing",
+            "event": "CANCEL",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Order",
+                {
+                  "status": "cancelled"
+                }
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order has been cancelled",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "processing",
+            "to": "browsing",
+            "event": "INIT",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "page-header",
+                  "title": "Orders",
+                  "actions": [
+                    {
+                      "label": "New Order",
+                      "event": "CREATE",
+                      "variant": "primary"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "filter-group",
+                  "filters": [
+                    {
+                      "field": "status",
+                      "filterType": "select",
+                      "label": "Status",
+                      "options": [
+                        "pending",
+                        "confirmed",
+                        "processing",
+                        "shipped",
+                        "delivered",
+                        "cancelled"
+                      ]
+                    },
+                    {
+                      "field": "orderDate",
+                      "filterType": "date-range",
+                      "label": "Order Date"
+                    },
+                    {
+                      "field": "customerEmail",
+                      "filterType": "search",
+                      "label": "Customer Email"
+                    }
+                  ]
+                }
+              ],
+              [
+                "render-ui",
+                "main",
+                {
+                  "type": "entity-table",
+                  "entity": "Order",
+                  "columns": [
+                    "id",
+                    "customerEmail",
+                    "amount",
+                    "status",
+                    "orderDate"
+                  ],
+                  "itemActions": [
+                    {
+                      "label": "View",
+                      "event": "VIEW",
+                      "placement": "row"
+                    },
+                    {
+                      "label": "Edit",
+                      "event": "EDIT",
+                      "placement": "menu"
+                    },
+                    {
+                      "label": "Cancel",
+                      "event": "CANCEL",
+                      "placement": "menu",
+                      "isDestructive": true
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "create",
+                "Order",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order created successfully",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "SAVE",
+            "effects": [
+              [
+                "persist",
+                "update",
+                "Order",
+                "@form"
+              ],
+              [
+                "render-ui",
+                "modal",
+                null
+              ],
+              [
+                "render-ui",
+                "toast",
+                {
+                  "type": "notification",
+                  "message": "Order updated successfully",
+                  "variant": "success"
+                }
+              ]
+            ]
+          },
+          {
+            "from": "creating",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "editing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "modal",
+                null
+              ]
+            ]
+          },
+          {
+            "from": "viewing",
+            "to": "browsing",
+            "event": "CLOSE",
+            "effects": [
+              [
+                "render-ui",
+                "drawer",
+                null
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "OrdersPage",
+      "path": "/orders",
+      "viewType": "list",
+      "primaryEntity": "Order",
+      "isInitial": true,
+      "traits": [
+        {
+          "ref": "OrderLifecycle"
+        }
+      ]
+    },
+    {
+      "name": "OrderDashboard",
+      "path": "/orders/dashboard",
+      "viewType": "dashboard",
+      "primaryEntity": "Order",
+      "traits": [
+        {
+          "ref": "OrderDashboard"
+        }
+      ]
+    }
+  ],
+  "emits": [
+    "ORDER_CREATED",
+    "ORDER_UPDATED",
+    "ORDER_STATUS_CHANGED",
+    "ORDER_CANCELLED"
+  ],
+  "listens": [
+    "PAYMENT_PROCESSED",
+    "INVENTORY_UPDATED"
+  ]
+}

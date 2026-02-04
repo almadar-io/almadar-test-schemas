@@ -1,0 +1,194 @@
+{
+  "$schema": "https://kflow.ai/schemas/orbital-v1.json",
+  "name": "YouTube Video Search",
+  "description": "Example orbital demonstrating service traits with YouTube integration",
+  "orbitals": [
+    {
+      "name": "VideoSearch",
+      "entity": {
+        "name": "VideoSearch",
+        "persistence": "runtime",
+        "fields": [
+          { "name": "searchTerm", "type": "string", "default": "" },
+          { "name": "results", "type": "array", "default": [] },
+          { "name": "selectedVideo", "type": "object", "default": null },
+          { "name": "error", "type": "string", "default": null }
+        ]
+      },
+      "traits": [
+        {
+          "name": "SearchInteraction",
+          "category": "interaction",
+          "description": "Handles search form UI interactions",
+          "stateMachine": {
+            "initial": "Idle",
+            "states": ["Idle", "Searching", "Results", "ViewingDetails"],
+            "events": ["SEARCH", "SEARCH_COMPLETE", "SEARCH_FAILED", "SELECT_VIDEO", "BACK"],
+            "transitions": [
+              {
+                "from": "Idle",
+                "to": "Searching",
+                "event": "SEARCH",
+                "effects": [
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "loading-state", "message": "Searching..." }
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "Searching",
+                "to": "Results",
+                "event": "SEARCH_COMPLETE",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "results", "value": "{{payload.items}}" }
+                  },
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "entity-cards", "dataSource": "results" }
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "Searching",
+                "to": "Idle",
+                "event": "SEARCH_FAILED",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "error", "value": "{{payload.message}}" }
+                  },
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "empty-state", "message": "Search failed. Try again." }
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "Results",
+                "to": "ViewingDetails",
+                "event": "SELECT_VIDEO",
+                "effects": [
+                  {
+                    "type": "update_field",
+                    "config": { "field": "selectedVideo", "value": "{{payload}}" }
+                  },
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "entity-detail", "dataSource": "selectedVideo" }
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "ViewingDetails",
+                "to": "Results",
+                "event": "BACK",
+                "effects": [
+                  {
+                    "type": "render_ui",
+                    "config": {
+                      "target": "main",
+                      "pattern": { "type": "entity-cards", "dataSource": "results" }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "YouTubeService",
+          "category": "integration",
+          "description": "Handles YouTube API integration via call_service",
+          "stateMachine": {
+            "initial": "Ready",
+            "states": ["Ready", "Calling"],
+            "events": ["SEARCH", "SEARCH_COMPLETE", "SEARCH_FAILED"],
+            "transitions": [
+              {
+                "from": "Ready",
+                "to": "Calling",
+                "event": "SEARCH",
+                "effects": [
+                  {
+                    "type": "call_service",
+                    "config": {
+                      "service": "youtube",
+                      "action": "search",
+                      "params": {
+                        "query": "{{payload.searchTerm}}",
+                        "maxResults": 12
+                      },
+                      "onSuccess": "SEARCH_COMPLETE",
+                      "onError": "SEARCH_FAILED"
+                    }
+                  }
+                ]
+              },
+              {
+                "from": "Calling",
+                "to": "Ready",
+                "event": "SEARCH_COMPLETE"
+              },
+              {
+                "from": "Calling",
+                "to": "Ready",
+                "event": "SEARCH_FAILED"
+              }
+            ]
+          }
+        }
+      ],
+      "patterns": ["search-bar", "entity-cards", "entity-detail", "loading-state", "empty-state"],
+      "pages": [
+        {
+          "name": "SearchPage",
+          "path": "/search",
+          "viewType": "list",
+          "sections": [
+            {
+              "pattern": "search-bar",
+              "config": { "placeholder": "Search YouTube videos...", "onSubmit": "SEARCH" }
+            },
+            {
+              "pattern": "entity-cards",
+              "config": { "dataSource": "results", "onClick": "SELECT_VIDEO" }
+            }
+          ]
+        },
+        {
+          "name": "VideoDetailPage",
+          "path": "/video/:id",
+          "viewType": "detail",
+          "sections": [
+            {
+              "pattern": "entity-detail",
+              "config": { "dataSource": "selectedVideo" }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "name": "youtube",
+      "description": "YouTube Data API integration",
+      "actions": ["search", "getVideo", "getChannel"]
+    }
+  ]
+}

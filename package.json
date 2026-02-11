@@ -7,6 +7,6 @@
     "./training-data/*": "./training-data/*"
   },
   "scripts": {
-    "validate": "orbital validate ./schemas/*.orb"
+    "validate": "for f in ./schemas/*.orb; do echo \"Validating $f\"; orbital validate \"$f\"; done"
   }
 }

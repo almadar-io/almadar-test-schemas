@@ -1,6 +1,6 @@
 {
   "name": "@almadar/test-schemas",
-  "version": "1.0.14",
+  "version": "2.0.0",
   "private": true,
   "exports": {
     "./schemas/*": "./schemas/*.orb",
@@ -8,5 +8,15 @@
   },
   "scripts": {
     "validate": "for f in ./schemas/*.orb; do echo \"Validating $f\"; orbital validate \"$f\"; done"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almadar-io/almadar-test-schemas.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

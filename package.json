@@ -7,7 +7,8 @@
     "./training-data/*": "./training-data/*"
   },
   "scripts": {
-    "validate": "for f in ./schemas/*.orb; do echo \"Validating $f\"; orbital validate \"$f\"; done"
+    "validate": "for f in ./schemas/*.orb; do echo \"Validating $f\"; orbital validate \"$f\"; done",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "files": [
     "dist"

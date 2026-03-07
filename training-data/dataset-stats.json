@@ -1,32 +1,3 @@
-{
-  "total": 158,
-  "train": 142,
-  "validation": 16,
-  "bySource": {
-    "schema": 54,
-    "pattern": 91,
-    "integrator": 13
-  },
-  "byDomain": {
-    "ecommerce": 11,
-    "general": 75,
-    "productivity": 5,
-    "content": 5,
-    "support": 5,
-    "booking": 5,
-    "billing": 5,
-    "inventory": 5,
-    "hr": 5,
-    "game": 24,
-    "media": 3,
-    "payment": 3,
-    "messaging": 3,
-    "ai": 4
-  },
-  "byComplexity": {
-    "complex": 8,
-    "medium": 59,
-    "simple": 91
-  },
-  "generatedAt": "2026-01-25T03:50:10.147Z"
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:5fe82eae51c1078ff3ba594e87b7171dd9a1fc34f06d61407a5af25a52938dcc
+size 527

@@ -1,6 +1,6 @@
 {
   "name": "@almadar/test-schemas",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "exports": {
     "./schemas/*": "./schemas/*.orb",
